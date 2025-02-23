@@ -23,7 +23,7 @@ public class SmartContractEvaluationService {
     private final SmartContractRepository smartContractRepository;
     private final TransactionRepository transactionRepository;
     private final WalletServiceI walletServiceI;
-    private final WalletKeyService walletKeyService; // Para obtener la clave pública del emisor
+    private final WalletKeyServiceI walletKeyServiceI; // Para obtener la clave pública del emisor
     private final SpelExpressionParser parser = new SpelExpressionParser();
 
     /**
@@ -31,7 +31,7 @@ public class SmartContractEvaluationService {
      */
     public boolean verifyContractSignature(SmartContract contract) {
         try {
-            PublicKey issuerPublicKey = walletKeyService.getPublicKeyForWallet(contract.getIssuerWalletId());
+            PublicKey issuerPublicKey = walletKeyServiceI.getPublicKeyForWallet(contract.getIssuerWalletId());
             if (issuerPublicKey == null) {
                 return false;
             }

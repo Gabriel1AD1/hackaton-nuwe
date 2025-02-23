@@ -268,36 +268,37 @@ public class WalletServiceI implements WalletService {
     }
 
 
-
     @Override
-    public Map<String, Object> getWalletBalance(Long userId) {
+    @Transactional(readOnly = true)
+    public WalletBalanceDTO getWalletBalance(Long userId) {
         Optional<Wallet> optionalWallet = walletRepository.findByUserId(userId);
-    
+
         if (optionalWallet.isEmpty()) {
-            return Map.of("error", "Wallet not found");
+            throw new EntityNotFoundException("Wallet not found");
         }
-    
+
         Wallet wallet = optionalWallet.get();
         Map<String, Double> assetPrices = marketDataServiceI.fetchLiveMarketPrices();
-    
+
         Map<String, Double> assetsMap = new HashMap<>();
         double netWorth = wallet.getBalance();
-    
+
         for (Asset asset : wallet.getAssets()) {
             double currentPrice = assetPrices.getOrDefault(asset.getSymbol(), 0.0);
             double assetValue = asset.getQuantity() * currentPrice;
             assetsMap.put(asset.getSymbol(), assetValue);
             netWorth += assetValue;
         }
-    
-        Map<String, Object> walletInfo = new HashMap<>();
-        walletInfo.put("wallet_address", wallet.getAddress());
-        walletInfo.put("cash_balance", wallet.getBalance());
-        walletInfo.put("net_worth", netWorth);
-        walletInfo.put("assets", assetsMap);
-    
-        return walletInfo;
+
+        // Usar el builder para crear la instancia de WalletBalanceDTO
+        return WalletBalanceDTO.builder()
+                .walletAddress(wallet.getAddress())
+                .cashBalance(wallet.getBalance())
+                .netWorth(netWorth)
+                .assets(assetsMap)
+                .build();
     }
+
     
     /**
      * Devuelve un mapa con dos listas de transacciones:
@@ -359,63 +360,7 @@ public class WalletServiceI implements WalletService {
 
     }
 
-    @Override
-    public WalletGenerateKeysDTO generateKeys(Long userId) {
-        Wallet wallet = walletRepository.findByUserId(userId)
-                .orElseThrow(() -> new EntityNotFoundException("Wallet not found for user"));
 
-        var responseDb = walletKeyRepository.findByWallet(wallet).orElseGet(() -> {
-
-            // Generar claves RSA
-            KeyPairGenerator keyGen;
-            try {
-                keyGen = KeyPairGenerator.getInstance("RSA");
-            } catch (NoSuchAlgorithmException e) {
-                throw new RuntimeException(e);
-            }
-            keyGen.initialize(2048);
-            KeyPair pair = keyGen.generateKeyPair();
-
-            String publicKeyStr = encodeKey(pair.getPublic());
-            String privateKeyStr = encodeKey(pair.getPrivate());
-            Path privateKeyPath = getPrivateKeyPath(wallet);
-            Path publicKeyPath = getPublicKeyPath(wallet);
-
-
-            // Convertir las claves a formato PEM
-            String publicKeyPEM = PemUtil.toPEMFormatPublic(publicKeyStr);
-            String privateKeyPEM = PemUtil.toPEMFormatPrivate(privateKeyStr);
-            saveWalletsKeys(privateKeyPath, privateKeyPEM, publicKeyPath, publicKeyPEM);
-
-            // Crear y guardar con Builder
-            WalletKey newWalletKey = WalletKey.builder()
-                    .wallet(wallet)
-                    .publicKey(publicKeyPEM)
-                    .privateKey(privateKeyPEM)
-                    .build();
-
-            return walletKeyRepository.save(newWalletKey);
-
-        });
-        // Verificar si ya existen claves
-        String absolutePath = Paths.get(KEY_DIR, "wallet_" + wallet.getId() + "_public.pem").toString();
-        log.info("Claves guardadas en: {}", absolutePath);
-        return WalletGenerateKeysDTO.generateKey(responseDb.getPublicKey(), absolutePath,wallet.getId());
-    }
-
-    private static void saveWalletsKeys(Path privateKeyPath, String privateKeyPEM, Path publicKeyPath, String publicKeyPEM) {
-        saveWalletKeyPem(privateKeyPath, privateKeyPEM);
-        saveWalletKeyPem(publicKeyPath, publicKeyPEM);
-    }
-
-    private static void saveWalletKeyPem(Path privateKeyPath, String privateKeyPEM) {
-        // Guardar en archivos
-        try (FileOutputStream fos = new FileOutputStream(privateKeyPath.toFile())) {
-            fos.write(privateKeyPEM.getBytes());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     private static Path getPublicKeyPath(Wallet wallet) {
         return Path.of(KEY_DIR, "wallet_" + wallet.getId() + "_public.pem");

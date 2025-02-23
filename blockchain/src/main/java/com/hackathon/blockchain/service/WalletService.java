@@ -21,7 +21,7 @@ public interface WalletService {
 
     String createWalletForUser(Long userId);
 
-    Map<String, Object> getWalletBalance(Long userId);
+    WalletBalanceDTO  getWalletBalance(Long userId);
 
     Map<String, List<Transaction>> getWalletTransactions(Long walletId);
 
@@ -33,7 +33,6 @@ public interface WalletService {
 
     Wallet findByUser(String username);
 
-    WalletGenerateKeysDTO generateKeys(Long userId);
 
     Map<String, Double> fetchLiveMarketPrices();
 

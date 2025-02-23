@@ -1,34 +1,40 @@
 package com.hackathon.blockchain.service.implementation;
 
+import com.hackathon.blockchain.dto.WalletGenerateKeysDTO;
+import com.hackathon.blockchain.exception.EntityNotFoundException;
 import com.hackathon.blockchain.model.Wallet;
 import com.hackathon.blockchain.model.WalletKey;
 import com.hackathon.blockchain.repository.WalletKeyRepository;
 import com.hackathon.blockchain.repository.WalletRepository;
+import com.hackathon.blockchain.service.WalletKeyService;
 import com.hackathon.blockchain.utils.PemUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.security.KeyFactory;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
+import java.nio.file.Paths;
+import java.security.*;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.Optional;
 
+import static com.hackathon.blockchain.utils.EncodeUtils.encodeKey;
+
 @Service
-public class WalletKeyService {
+public class WalletKeyServiceI implements WalletKeyService {
 
     private static final String KEYS_FOLDER = "keys";
+    private static final Logger log = LoggerFactory.getLogger(WalletKeyServiceI.class);
     private final WalletKeyRepository walletKeyRepository;
     private final WalletRepository walletRepository;
 
-    public WalletKeyService(WalletKeyRepository walletKeyRepository, WalletRepository walletRepository) {
+    public WalletKeyServiceI(WalletKeyRepository walletKeyRepository, WalletRepository walletRepository) {
         this.walletKeyRepository = walletKeyRepository;
         this.walletRepository = walletRepository;
         // Asegurarse de que la carpeta /keys exista
@@ -36,7 +42,7 @@ public class WalletKeyService {
         if (!dir.exists()) {
             dir.mkdirs();
         }
-        System.out.println("Directorio de claves: " + dir.getAbsolutePath());
+        log.debug("Directorio de claves: {}", dir.getAbsolutePath());
     }
 
     public Optional<WalletKey> getKeysByWallet(Wallet wallet) {
@@ -46,40 +52,54 @@ public class WalletKeyService {
     public Optional<WalletKey> getKeysByWalletId(Long walletId) {
         return walletKeyRepository.findByWalletId(walletId);
     }
-
+    @Override
     /**
      * Genera un par de claves RSA de 2048 bits, las convierte a PEM y las almacena en archivos,
      * además de guardarlas en la base de datos vinculadas a la wallet.
      */
-    public WalletKey generateAndStoreKeys(Wallet wallet) throws NoSuchAlgorithmException, IOException {
-        // Generar el par de claves
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
-        keyGen.initialize(2048);
-        KeyPair keyPair = keyGen.generateKeyPair();
+    @Transactional
+    public WalletGenerateKeysDTO generateAndStoreKeys(Long userId) {
+        Wallet wallet = walletRepository.findByUserId(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Wallet not found for user"));
 
-        // Convertir las claves a formato PEM
-        String publicKeyPEM = PemUtil.toPEMFormat(keyPair.getPublic(), "PUBLIC");
-        String privateKeyPEM = PemUtil.toPEMFormat(keyPair.getPrivate(), "PRIVATE");
+        var responseDb = walletKeyRepository.findByWallet(wallet).orElseGet(() -> {
 
-        // Guardar las claves en archivos dentro de la carpeta /keys
-        Path privateKeyPath = Path.of(KEYS_FOLDER, "wallet_" + wallet.getId() + "_private.pem");
-        Path publicKeyPath = Path.of(KEYS_FOLDER, "wallet_" + wallet.getId() + "_public.pem");
+            // Generar claves RSA
+            KeyPairGenerator keyGen;
+            try {
+                keyGen = KeyPairGenerator.getInstance("RSA");
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException(e);
+            }
+            keyGen.initialize(2048);
+            KeyPair pair = keyGen.generateKeyPair();
 
-        try (FileOutputStream fos = new FileOutputStream(privateKeyPath.toFile())) {
-            fos.write(privateKeyPEM.getBytes());
-        }
-        try (FileOutputStream fos = new FileOutputStream(publicKeyPath.toFile())) {
-            fos.write(publicKeyPEM.getBytes());
-        }
+            String publicKeyStr = encodeKey(pair.getPublic());
+            String privateKeyStr = encodeKey(pair.getPrivate());
+            Path privateKeyPath = getPrivateKeyPath(wallet);
+            Path publicKeyPath = getPublicKeyPath(wallet);
 
-        // Crear y guardar la entidad WalletKey en la BD
-        WalletKey walletKey = new WalletKey();
-        walletKey.setWallet(wallet);
-        walletKey.setPublicKey(publicKeyPEM);
-        walletKey.setPrivateKey(privateKeyPEM);
-        return walletKeyRepository.save(walletKey);
+
+            // Convertir las claves a formato PEM
+            String publicKeyPEM = PemUtil.toPEMFormatPublic(publicKeyStr);
+            String privateKeyPEM = PemUtil.toPEMFormatPrivate(privateKeyStr);
+            saveWalletsKeys(privateKeyPath, privateKeyPEM, publicKeyPath, publicKeyPEM);
+
+            // Crear y guardar con Builder
+            WalletKey newWalletKey = WalletKey.builder()
+                    .wallet(wallet)
+                    .publicKey(publicKeyPEM)
+                    .privateKey(privateKeyPEM)
+                    .build();
+
+            return walletKeyRepository.save(newWalletKey);
+
+        });
+        // Verificar si ya existen claves
+        String absolutePath = Paths.get(KEYS_FOLDER, "wallet_" + wallet.getId() + "_public.pem").toString();
+        log.info("Claves guardadas en: {}", absolutePath);
+        return WalletGenerateKeysDTO.generateKey(responseDb.getPublicKey(), absolutePath,wallet.getId());
     }
-
     // Método para obtener la clave pública de una wallet (en formato PublicKey)
     public PublicKey getPublicKeyForWallet(Long walletId) {
         Optional<WalletKey> keyOpt = walletKeyRepository.findByWalletId(walletId);
@@ -126,4 +146,27 @@ public class WalletKeyService {
         }
         return null;
     }
+
+    private static void saveWalletsKeys(Path privateKeyPath, String privateKeyPEM, Path publicKeyPath, String publicKeyPEM) {
+        saveWalletKeyPem(privateKeyPath, privateKeyPEM);
+        saveWalletKeyPem(publicKeyPath, publicKeyPEM);
+    }
+
+    private static void saveWalletKeyPem(Path privateKeyPath, String privateKeyPEM) {
+        // Guardar en archivos
+        try (FileOutputStream fos = new FileOutputStream(privateKeyPath.toFile())) {
+            fos.write(privateKeyPEM.getBytes());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static Path getPublicKeyPath(Wallet wallet) {
+        return Path.of(KEYS_FOLDER, "wallet_" + wallet.getId() + "_public.pem");
+    }
+
+    private static Path getPrivateKeyPath(Wallet wallet) {
+        return Path.of(KEYS_FOLDER, "wallet_" + wallet.getId() + "_private.pem");
+    }
+
 }
