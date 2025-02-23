@@ -41,4 +41,10 @@ public class ResponseDTO {
     public static ResponseDTO noPendingTransactionMine() {
         return new ResponseDTOBuilder().message("❌ No pending transactions to mine.").build();
     }
+    public static ResponseDTO blockChainIsValid(){
+        return new ResponseDTOBuilder().message("Blockchain valid: true").build();
+    }
+    public static ResponseDTO blockChainIsNotValid(){
+        return new ResponseDTOBuilder().message("Blockchain valid: false").build();
+    }
 }

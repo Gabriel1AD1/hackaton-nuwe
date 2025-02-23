@@ -37,4 +37,5 @@ public class WalletController extends ControllerBase {
     public ResponseEntity<TransactionDTO> getTransaction(){
         return ResponseEntity.ok(transactionService.getTransactionForUserId(getUserSessionSecurity().getUserId()));
     }
+
 }
