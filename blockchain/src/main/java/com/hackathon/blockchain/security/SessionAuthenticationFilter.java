@@ -46,10 +46,10 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
                 // Si hay una sesión activa, puedes continuar con el filtro
                 filterChain.doFilter(request, response);
             } else {
-                throw new UnauthorizedException("You do not have an active session, please log in.");
+                throw new UnauthorizedException("❌ Invalid credentials");
             }
         } catch (UnauthorizedException ex) {
-            ApiResponse responseApi = ApiResponse.unauthorized(ex.getMessage()).build();
+            ApiResponse responseApi = ApiResponse.unauthorized().build();
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
             response.setContentType("application/json"); // Establece el tipo de contenido
             response.getWriter().write(objectMapper.writeValueAsString(responseApi)); // Serializa a JSON

@@ -1,6 +1,7 @@
 package com.hackathon.blockchain.controller;
 
 import com.hackathon.blockchain.dto.UserSession;
+import com.hackathon.blockchain.exception.UnauthorizedException;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +18,7 @@ public abstract class ControllerBase {
         if (SecurityContextHolder.getContext().getAuthentication() != null) {
             return (UserSession) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         }
-        return null; // O lanzar una excepción si prefieres
+        throw new UnauthorizedException(""); // O lanzar una excepción si prefieres
     }
     protected void removeSession(HttpSession session) {
         session.removeAttribute("userSession");
