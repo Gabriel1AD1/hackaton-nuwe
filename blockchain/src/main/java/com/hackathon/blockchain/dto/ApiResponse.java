@@ -41,7 +41,7 @@ public class ApiResponse {
         return createResponse(HttpStatus.UNAUTHORIZED, 401L, message, List.of());
     }
     public static ApiResponseBuilder loginFailed() {
-        return createResponse(HttpStatus.BAD_REQUEST, 400L, "Password or Username Invalid", List.of());
+        return createResponse(HttpStatus.BAD_REQUEST, 401L, "❌ Invalid credentials", List.of());
     }
     public static ApiResponseBuilder methodNotAllowed(String method, List<String> supportedMethods) {
         String message = String.format("El método %s no está permitido. Métodos soportados: %s", method, String.join(", ", supportedMethods));

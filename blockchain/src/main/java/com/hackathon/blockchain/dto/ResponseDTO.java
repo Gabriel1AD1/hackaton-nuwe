@@ -24,7 +24,7 @@ public class ResponseDTO {
     }
 
     public static ResponseDTO logoutMessage() {
-        return  new ResponseDTOBuilder().message("User logged out successfully").build();
+        return  new ResponseDTOBuilder().message("Logged out successfully").build();
     }
 
     public static ResponseDTO createWallerMessage(String message) {

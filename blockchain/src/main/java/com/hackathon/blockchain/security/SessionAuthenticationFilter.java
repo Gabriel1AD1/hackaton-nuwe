@@ -57,7 +57,10 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private static boolean urisPermitted(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws IOException, ServletException {
-        if (request.getRequestURI().contains("/auth/") || request.getRequestURI().contains("/health")) {
+        if (request.getRequestURI().startsWith("/auth/register")||
+                request.getRequestURI().startsWith("/auth/login")||
+                request.getRequestURI().startsWith("/auth/logout") ||
+                request.getRequestURI().startsWith("/health")) {
             filterChain.doFilter(request, response);
             return true;
         }

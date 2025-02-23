@@ -1,15 +1,14 @@
 package com.hackathon.blockchain.controller;
 
-import com.hackathon.blockchain.dto.RequestLoginUser;
-import com.hackathon.blockchain.dto.UserSession;
-import com.hackathon.blockchain.dto.RequestRegisterUserDTO;
-import com.hackathon.blockchain.dto.ResponseDTO;
+import com.hackathon.blockchain.dto.*;
 import com.hackathon.blockchain.service.UserService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/auth")
@@ -48,6 +47,14 @@ public class AuthController extends ControllerBase {
                 .build());
         return ResponseEntity.ok(ResponseDTO.loginSuccessful());
     }
-
+    @GetMapping("/check-session")
+    public ResponseEntity<CheckSessionDTO> checkSession() {
+        var userOptional = Optional.ofNullable(getUserSessionSecurity());
+        if (userOptional.isEmpty()){
+            return ResponseEntity.badRequest().build();
+        }
+        var user = userOptional.get();
+        return ResponseEntity.ok(CheckSessionDTO.messageCheckSession(user.getUsername()));
+    }
 
 }

@@ -26,7 +26,6 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/auth/register",
                                 "/auth/login",
-                                "/auth/check-session",
                                 "/auth/logout",
                                 "/health").permitAll() // Permitir acceso a estas rutas
                         .anyRequest().authenticated() // Cualquier otra solicitud requiere autenticación

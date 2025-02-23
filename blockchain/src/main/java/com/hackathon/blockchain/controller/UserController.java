@@ -11,9 +11,5 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/user")
 @AllArgsConstructor
 public class UserController extends ControllerBase {
-    @GetMapping("/check-session")
-    public ResponseEntity<ResponseDTO> checkSession() {
-        var user = getUserSessionSecurity();
-        return ResponseEntity.ok(ResponseDTO.checkAuthMessage(user.getUsername())); // Usar la función heredada
-    }
+
 }
