@@ -1,0 +1,23 @@
+{
+  "properties": [
+    {
+      "name": "spring.security.csrf.enabled",
+      "type": "java.lang.String",
+      "description": "Description for spring.security.csrf.enabled."
+    },
+    {
+      "name": "spring.session.store-type",
+      "type": "java.lang.String",
+      "description": "Description for spring.session.store-type."
+    },
+    {
+      "name": "servidor.servlet.session.cookie.secure",
+      "type": "java.lang.String",
+      "description": "Description for servidor.servlet.session.cookie.secure."
+    },
+    {
+      "name": "servidor.servlet.session.cookie.http-only",
+      "type": "java.lang.String",
+      "description": "Description for servidor.servlet.session.cookie.http-only."
+    }
+  ] }

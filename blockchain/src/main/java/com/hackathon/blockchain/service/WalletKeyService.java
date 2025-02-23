@@ -26,7 +26,7 @@ public class WalletKeyService {
     private static final String KEYS_FOLDER = "keys";
     private final WalletKeyRepository walletKeyRepository;
 
-    public WalletKeyService(WalletKeyRepository walletKeyRepository) throws IOException {
+    public WalletKeyService(WalletKeyRepository walletKeyRepository) {
         this.walletKeyRepository = walletKeyRepository;
         // Asegurarse de que la carpeta /keys exista
         File dir = new File(KEYS_FOLDER);

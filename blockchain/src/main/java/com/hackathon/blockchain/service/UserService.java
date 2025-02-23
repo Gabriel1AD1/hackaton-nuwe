@@ -1,41 +1,63 @@
 package com.hackathon.blockchain.service;
 
+import com.hackathon.blockchain.dto.RequestLoginUser;
+import com.hackathon.blockchain.dto.RequestRegisterUserDTO;
+import com.hackathon.blockchain.exception.AuthRequestFailedException;
+import com.hackathon.blockchain.exception.EntityAlreadyException;
 import com.hackathon.blockchain.model.User;
 import com.hackathon.blockchain.repository.UserRepository;
+import lombok.AllArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
 @Service
+@AllArgsConstructor
 public class UserService {
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-    }
 
-    public User register(String username, String email, String password) {
-        System.out.println("Intentando guardar usuario: " + username + " - " + email);
-    
-        if (userRepository.findByUsername(username).isPresent()) {
-            throw new RuntimeException("Username already exists");
+    public User register(RequestRegisterUserDTO dto) {
+        log.trace("Intentando guardar usuario: {} - {}", dto.getUsername(), dto.getEmail());
+
+        if (userRepository.findByUsername(dto.getUsername()).isPresent()) {
+            throw new EntityAlreadyException("Username already exists");
         }
-    
-        User user = new User();
-        user.setUsername(username);
-        user.setEmail(email);
-        user.setPassword(passwordEncoder.encode(password));
-    
-        User savedUser = userRepository.save(user);
-        System.out.println("Usuario guardado con ID: " + savedUser.getId());
-    
+        User savedUser = userRepository.save(User.builder()
+                        .email(dto.getEmail())
+                        .password(passwordEncoder.encode(dto.getPassword()))
+                        .username(dto.getUsername())
+                .build());
+
+        log.info("Usuario guardado con ID: {}", savedUser.getId());
         return savedUser;
     }
 
     public Optional<User> findByUsername(String username) {
         return userRepository.findByUsername(username);
     }
+
+    public User login(RequestLoginUser dto) {
+        var userDb = userRepository.findByUsername(dto.getUsername());
+
+        if (userDb.isEmpty()) {
+            throw new AuthRequestFailedException();
+        }
+        // Obtener el usuario de la envoltura Optional
+        User user = userDb.get();
+
+        // Verificar la contraseña
+        if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
+            throw new AuthRequestFailedException();
+        }
+        // Aquí puedes agregar la lógica para manejar la sesión del usuario si es necesario
+        log.info("Usuario {} ha iniciado sesión correctamente.", user.getUsername());
+        return user;
+    }
+
 }

@@ -1,17 +1,24 @@
 package com.hackathon.blockchain.service;
 
+import com.hackathon.blockchain.enums.AccountStatus;
+import com.hackathon.blockchain.enums.TransactionStatus;
+import com.hackathon.blockchain.enums.TransactionType;
+import com.hackathon.blockchain.exception.EntityNotFoundException;
 import com.hackathon.blockchain.model.Asset;
 import com.hackathon.blockchain.model.Transaction;
 import com.hackathon.blockchain.model.User;
 import com.hackathon.blockchain.model.Wallet;
 import com.hackathon.blockchain.repository.TransactionRepository;
+import com.hackathon.blockchain.repository.UserRepository;
 import com.hackathon.blockchain.repository.WalletRepository;
 
+import lombok.AllArgsConstructor;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.List;
@@ -23,20 +30,13 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
+@AllArgsConstructor
 public class WalletService {
 
     private final WalletRepository walletRepository;
     private final TransactionRepository transactionRepository;
     private final MarketDataService marketDataService;
-
-    public WalletService(WalletRepository walletRepository, 
-                         TransactionRepository transactionRepository, 
-                         MarketDataService marketDataService,
-                         BlockchainService blockchainService) {
-        this.walletRepository = walletRepository;
-        this.transactionRepository = transactionRepository;
-        this.marketDataService = marketDataService;
-    }
+    private final UserRepository userRepository;
 
     public Optional<Wallet> getWalletByUserId(Long userId) {
         return walletRepository.findByUserId(userId);
@@ -101,7 +101,7 @@ public class WalletService {
             walletRepository.save(userWallet);
             walletRepository.save(usdtLiquidityWallet);
     
-            recordTransaction(usdtLiquidityWallet, userWallet, "USDT", quantity, price, "BUY");
+            recordTransaction(usdtLiquidityWallet, userWallet, "USDT", quantity, price, TransactionType.BUY);
             return "✅ USDT purchased successfully!";
         }
     
@@ -123,7 +123,7 @@ public class WalletService {
         walletRepository.save(liquidityWallet);
         walletRepository.save(usdtLiquidityWallet);
     
-        recordTransaction(liquidityWallet, userWallet, symbol, quantity, price, "BUY");
+        recordTransaction(liquidityWallet, userWallet, symbol, quantity, price, TransactionType.BUY);
     
         return "✅ Asset purchased successfully!";
     }
@@ -186,7 +186,7 @@ public class WalletService {
             walletRepository.save(usdtLiquidityWallet);
         }
     
-        recordTransaction(userWallet, liquidityWallet, symbol, quantity, price, "SELL");
+        recordTransaction(userWallet, liquidityWallet, symbol, quantity, price, TransactionType.SELL);
     
         walletRepository.save(userWallet);
         walletRepository.save(liquidityWallet);
@@ -217,35 +217,35 @@ public class WalletService {
         }
     }     
 
-    private void recordTransaction(Wallet sender, Wallet receiver, String assetSymbol, double quantity, double price, String type) {
-        Transaction transaction = new Transaction(
-            null,             // id (se genera automáticamente)
-            sender,           // senderWallet
-            receiver,         // receiverWallet
-            assetSymbol,      // assetSymbol
-            quantity,         // amount
-            price,            // pricePerUnit
-            type,             // type
-            new Date(),       // timestamp
-            "PENDING",        // status
-            0.0,              // fee
-            null              // block (aún no asignado)
-        );
-        
-        transactionRepository.save(transaction);
+    private void recordTransaction(Wallet sender, Wallet receiver, String assetSymbol, double quantity, double price, TransactionType type) {
+        transactionRepository.save(Transaction.builder()
+                        .senderWallet(sender)
+                        .receiverWallet(receiver)
+                        .assetSymbol(assetSymbol)
+                        .quantity(quantity)
+                        .pricePerUnit(price)
+                        .type(type)
+                        .timestamp(Instant.now())
+                        .status(TransactionStatus.PENDING)
+                        .fee(0.0)
+                .build());
     }
-    
-        public String createWalletForUser(User user) {
+
+    public String createWalletForUser(Long userId) {
+        User user = userRepository.findById(userId).orElseThrow(
+                () -> new EntityNotFoundException("No existe el usuario")
+        );
         Optional<Wallet> existingWallet = walletRepository.findByUserId(user.getId());
         if (existingWallet.isPresent()) {
             return "❌ You already have a wallet created.";
         }
 
-        Wallet wallet = new Wallet();
-        wallet.setUser(user);
-        wallet.setAddress(generateWalletAddress());
-        wallet.setBalance(10000.0);
-        wallet.setAccountStatus("ACTIVE");
+        Wallet wallet = Wallet.builder()
+                .user(user)
+                .address(generateWalletAddress())
+                .balance(10000.0)
+                .accountStatus(AccountStatus.ACTIVE)
+                .build();
 
         walletRepository.save(wallet);
 
@@ -373,7 +373,7 @@ public class WalletService {
         Wallet feeWallet = new Wallet();
         feeWallet.setAddress(feeWalletAddress);
         feeWallet.setBalance(0.0);
-        feeWallet.setAccountStatus("ACTIVE");
+        feeWallet.setAccountStatus(AccountStatus.ACTIVE);
         // Al no estar asociada a un usuario, se deja user en null
         walletRepository.save(feeWallet);
         return "Fee wallet created successfully with address: " + feeWalletAddress;
