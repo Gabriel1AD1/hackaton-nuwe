@@ -59,31 +59,21 @@ public class WalletKeyServiceI implements WalletKeyService {
 
             // Generar claves RSA
             KeyPairGenerator keyGen;
-            try {
-                keyGen = KeyPairGenerator.getInstance("RSA");
-            } catch (NoSuchAlgorithmException e) {
-                throw new RuntimeException(e);
-            }
+            keyGen = getKeyPairGenerator();
             keyGen.initialize(2048);
             KeyPair pair = keyGen.generateKeyPair();
 
-            String publicKeyStr = encodeKey(pair.getPublic());
-            String privateKeyStr = encodeKey(pair.getPrivate());
             Path privateKeyPath = getPrivateKeyPath(wallet);
             Path publicKeyPath = getPublicKeyPath(wallet);
 
 
             // Convertir las claves a formato PEM
-            String publicKeyPEM = PemUtil.toPEMFormatPublic(publicKeyStr);
-            String privateKeyPEM = PemUtil.toPEMFormatPrivate(privateKeyStr);
+            String publicKeyPEM = PemUtil.toPEMFormatPublic(encodeKey(pair.getPublic()));
+            String privateKeyPEM = PemUtil.toPEMFormatPrivate(encodeKey(pair.getPrivate()));
             saveWalletsKeys(privateKeyPath, privateKeyPEM, publicKeyPath, publicKeyPEM);
 
             // Crear y guardar con Builder
-            WalletKey newWalletKey = WalletKey.builder()
-                    .wallet(wallet)
-                    .publicKey(publicKeyPEM)
-                    .privateKey(privateKeyPEM)
-                    .build();
+            WalletKey newWalletKey = builWalletKey(wallet, publicKeyPEM, privateKeyPEM);
 
             return walletKeyRepository.save(newWalletKey);
 
@@ -93,6 +83,25 @@ public class WalletKeyServiceI implements WalletKeyService {
         log.info("Claves guardadas en: {}", absolutePath);
         return WalletGenerateKeysDTO.generateKey(responseDb.getPublicKey(), absolutePath,wallet.getId());
     }
+
+    private static WalletKey builWalletKey(Wallet wallet, String publicKeyPEM, String privateKeyPEM) {
+        return WalletKey.builder()
+                .wallet(wallet)
+                .publicKey(publicKeyPEM)
+                .privateKey(privateKeyPEM)
+                .build();
+    }
+
+    private static KeyPairGenerator getKeyPairGenerator() {
+        KeyPairGenerator keyGen;
+        try {
+            keyGen = KeyPairGenerator.getInstance("RSA");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+        return keyGen;
+    }
+
     // Método para obtener la clave pública de una wallet (en formato PublicKey)
     public PublicKey getPublicKeyForWallet(Long walletId) {
         Optional<WalletKey> keyOpt = walletKeyRepository.findByWalletId(walletId);

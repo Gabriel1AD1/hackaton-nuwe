@@ -34,20 +34,28 @@ public class TransactionServiceI implements TransactionService {
         List<Transaction> receivedTransactions = transactionRepository.findByReceiverWallet(wallet);
 
         // Convertir las transacciones enviadas a DTO
-        List<TransactionDTO.SentTransactionDTO> sentTransactionDTOs = sentTransactions.stream()
-                .map(this::convertToSentTransactionDTO)
-                .collect(Collectors.toList());
+        List<TransactionDTO.SentTransactionDTO> sentTransactionDTOs = getCollectSent(sentTransactions);
 
         // Convertir las transacciones recibidas a DTO
-        List<TransactionDTO.ReceivedTransactionDTO> receivedTransactionDTOs = receivedTransactions.stream()
-                .map(this::convertToReceivedTransactionDTO)
-                .collect(Collectors.toList());
+        List<TransactionDTO.ReceivedTransactionDTO> receivedTransactionDTOs = getCollectReceived(receivedTransactions);
 
         // Crear el DTO de transacciones
         return TransactionDTO.builder()
                 .sent(sentTransactionDTOs)
                 .received(receivedTransactionDTOs)
                 .build();
+    }
+
+    private List<TransactionDTO.SentTransactionDTO> getCollectSent(List<Transaction> sentTransactions) {
+        return sentTransactions.stream()
+                .map(this::convertToSentTransactionDTO)
+                .collect(Collectors.toList());
+    }
+
+    private List<TransactionDTO.ReceivedTransactionDTO> getCollectReceived(List<Transaction> receivedTransactions) {
+        return receivedTransactions.stream()
+                .map(this::convertToReceivedTransactionDTO)
+                .collect(Collectors.toList());
     }
 
     // Método para convertir a DTO de transacción enviada

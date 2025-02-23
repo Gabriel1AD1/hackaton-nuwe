@@ -27,18 +27,27 @@ public class UserServiceI implements UserService {
     public User register(RequestRegisterUserDTO dto) {
         log.trace("Intentando guardar usuario: {} - {}", dto.getUsername(), dto.getEmail());
 
-        if (userRepository.findByUsername(dto.getUsername()).isPresent()) {
-            throw new EntityAlreadyException("Username already exists");
-        }
-        User savedUser = userRepository.save(User.builder()
-                        .email(dto.getEmail())
-                        .password(passwordEncoder.encode(dto.getPassword()))
-                        .username(dto.getUsername())
-                .build());
+        verifyUsernameAlreadyExist(dto);
+        User savedUser = saveUser(dto);
 
         log.info("Usuario guardado con ID: {}", savedUser.getId());
         return savedUser;
     }
+
+    private void verifyUsernameAlreadyExist(RequestRegisterUserDTO dto) {
+        if (userRepository.findByUsername(dto.getUsername()).isPresent()) {
+            throw new EntityAlreadyException("Username already exists");
+        }
+    }
+
+    private User saveUser(RequestRegisterUserDTO dto) {
+        return userRepository.save(User.builder()
+                .email(dto.getEmail())
+                .password(passwordEncoder.encode(dto.getPassword()))
+                .username(dto.getUsername())
+                .build());
+    }
+
     @Override
     public Optional<User> findByUsername(String username) {
         return userRepository.findByUsername(username);
@@ -47,19 +56,21 @@ public class UserServiceI implements UserService {
     public User login(RequestLoginUser dto) {
         var userDb = userRepository.findByUsername(dto.getUsername());
 
-        if (userDb.isEmpty()) {
-            throw new AuthRequestFailedException();
-        }
+        varifyPassword(userDb.isEmpty());
         // Obtener el usuario de la envoltura Optional
         User user = userDb.get();
 
         // Verificar la contraseña
-        if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
-            throw new AuthRequestFailedException();
-        }
+        varifyPassword(!passwordEncoder.matches(dto.getPassword(), user.getPassword()));
         // Aquí puedes agregar la lógica para manejar la sesión del usuario si es necesario
         log.info("Usuario {} ha iniciado sesión correctamente.", user.getUsername());
         return user;
+    }
+
+    private void varifyPassword(boolean passwordEncoder) {
+        if (passwordEncoder) {
+            throw new AuthRequestFailedException();
+        }
     }
 
 }

@@ -273,12 +273,8 @@ public class WalletServiceI implements WalletService {
     public WalletBalanceDTO getWalletBalance(Long userId) {
         Optional<Wallet> optionalWallet = walletRepository.findByUserId(userId);
 
-        if (optionalWallet.isEmpty()) {
-            throw new EntityNotFoundException("Wallet not found");
-        }
-
-        Wallet wallet = optionalWallet.get();
-        Map<String, Double> assetPrices = marketDataServiceI.fetchLiveMarketPrices();
+        Wallet wallet = getWallet(optionalWallet);
+        Map<String, Double> assetPrices = getAssetPrices();
 
         Map<String, Double> assetsMap = new HashMap<>();
         double netWorth = wallet.getBalance();
@@ -299,7 +295,18 @@ public class WalletServiceI implements WalletService {
                 .build();
     }
 
-    
+    private Map<String, Double> getAssetPrices() {
+        return marketDataServiceI.fetchLiveMarketPrices();
+    }
+
+    private static Wallet getWallet(Optional<Wallet> optionalWallet) {
+        return optionalWallet.orElseThrow(
+                () -> new EntityNotFoundException("Wallet not found")
+
+        );
+    }
+
+
     /**
      * Devuelve un mapa con dos listas de transacciones:
      * - "sent": transacciones enviadas (donde la wallet es remitente)
@@ -372,7 +379,7 @@ public class WalletServiceI implements WalletService {
 
     @Override
     public Map<String, Double> fetchLiveMarketPrices() {
-        return marketDataServiceI.fetchLiveMarketPrices();
+        return getAssetPrices();
     }
 
     @Override
