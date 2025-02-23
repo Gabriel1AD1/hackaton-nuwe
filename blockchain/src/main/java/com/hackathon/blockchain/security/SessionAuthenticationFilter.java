@@ -64,6 +64,7 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
                 request.getRequestURI().startsWith("/market/price")
         )
 
+
         {
             filterChain.doFilter(request, response);
             return true;
