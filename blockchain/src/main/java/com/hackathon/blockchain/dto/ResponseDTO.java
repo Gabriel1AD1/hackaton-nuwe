@@ -33,4 +33,12 @@ public class ResponseDTO {
     public static ResponseDTO createMessageForPriceAsset(String symbol, Double price) {
         return new ResponseDTOBuilder().message("Current price of " + symbol.toUpperCase() + ": $" + price).build();
     }
+
+    public static ResponseDTO simulateMiningMessage(String blockHash) {
+        return new ResponseDTOBuilder().message("Block mined: " + blockHash).build();
+    }
+
+    public static ResponseDTO noPendingTransactionMine() {
+        return new ResponseDTOBuilder().message("❌ No pending transactions to mine.").build();
+    }
 }

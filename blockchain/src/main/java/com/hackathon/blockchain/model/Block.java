@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "block")
+@Table(name = "tbl_block")
 public class Block {
 
     @Id
@@ -38,7 +38,19 @@ public class Block {
 
     public String calculateHash() {
         String input = blockIndex + previousHash + data + timestamp + nonce;
-        DigestUtils HashUtil = new DigestUtils();
-        return HashUtil.sha256(input).toString();
+        // Calcula el hash en forma de byte array
+        byte[] hashBytes = DigestUtils.sha256(input);
+        // Convierte el byte array a una cadena hexadecimal
+        return bytesToHex(hashBytes);
     }
+
+    // Método auxiliar para convertir un byte array a una cadena hexadecimal
+    private String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
+    }
+
 }
