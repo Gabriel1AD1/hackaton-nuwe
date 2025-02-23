@@ -50,8 +50,9 @@ public class Transaction {
     @Column(nullable = false)
     private double fee;
 
-    @Column
-    private String block; // Para blockchain
+    @ManyToOne
+    @JoinColumn(name = "block_id") // Referencia al bloque al que pertenece la transacción
+    private Block block; // Para blockchain
 
     private BigDecimal amount;
 

@@ -19,6 +19,7 @@ public class CorsConfig {
         config.setAllowedOriginPatterns(Arrays.asList("http://localhost:3000", "http://localhost:8080"));
         // Permite solo los métodos necesarios
         config.setAllowedMethods(Arrays.asList("GET", "POST", "OPTIONS"));
+        config.addAllowedOrigin("*"); // Solo para desarrollo
         // Limita los encabezados permitidos
         config.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
         // Revisa si necesitas compartir credenciales

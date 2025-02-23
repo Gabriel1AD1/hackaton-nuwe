@@ -16,15 +16,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.nio.file.Path;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Slf4j
 @Service
 @AllArgsConstructor
 public class WalletServiceI implements WalletService {
-
+    private final BlockRepository blockRepository;
     private final WalletRepository walletRepository;
     private final TransactionRepository transactionRepository;
     private final SmartContractRepository smartContractRepository;
@@ -62,135 +62,6 @@ public class WalletServiceI implements WalletService {
                 liquidityWallet.getAssets().add(asset);
             }
         }
-    }
-
-    /*
-     * Los usuarios deben comprar primero USDT para poder cambiar por tokens
-     * El dinero fiat no vale para comprar tokens
-     * Cuando se intercambia USDT por cualquier moneda, no se añade USDT a los assets de otras monedas
-     */
-    @Transactional
-    @Override
-    public String buyAsset(Long userId, String symbol, double quantity) {
-        Optional<Wallet> optionalWallet = walletRepository.findByUserId(userId);
-        Optional<Wallet> liquidityWalletOpt = walletRepository.findByAddress("LP-" + symbol);
-        Optional<Wallet> usdtLiquidityWalletOpt = walletRepository.findByAddress("LP-USDT");
-    
-        if (optionalWallet.isEmpty()) return "❌ Wallet not found!";
-        if (liquidityWalletOpt.isEmpty()) return "❌ Liquidity pool for " + symbol + " not found!";
-        if (usdtLiquidityWalletOpt.isEmpty()) return "❌ Liquidity pool for USDT not found!";
-    
-        Wallet userWallet = optionalWallet.get();
-        Wallet liquidityWallet = liquidityWalletOpt.get();
-        Wallet usdtLiquidityWallet = usdtLiquidityWalletOpt.get();
-    
-        double price = marketDataServiceI.fetchLivePriceForAsset(symbol);
-        double totalCost = quantity * price;
-    
-        if (symbol.equals("USDT")) {
-            if (userWallet.getBalance() < totalCost) {
-                return "❌ Insufficient fiat balance to buy USDT!";
-            }
-    
-            userWallet.setBalance(userWallet.getBalance() - totalCost);
-            updateWalletAssets(userWallet, "USDT", quantity);
-            updateWalletAssets(usdtLiquidityWallet, "USDT", -quantity);
-    
-            walletRepository.save(userWallet);
-            walletRepository.save(usdtLiquidityWallet);
-    
-            recordTransaction(usdtLiquidityWallet, userWallet, "USDT", quantity, price, TransactionType.BUY);
-            return "✅ USDT purchased successfully!";
-        }
-    
-        Optional<Asset> usdtAssetOpt = userWallet.getAssets().stream()
-                .filter(a -> a.getSymbol().equals("USDT"))
-                .findFirst();
-    
-        if (usdtAssetOpt.isEmpty() || usdtAssetOpt.get().getQuantity() < totalCost) {
-            return "❌ Insufficient USDT balance! You must buy USDT first.";
-        }
-    
-        updateWalletAssets(userWallet, "USDT", -totalCost);
-        updateWalletAssets(usdtLiquidityWallet, "USDT", totalCost);
-    
-        updateWalletAssets(userWallet, symbol, quantity);
-        updateWalletAssets(liquidityWallet, symbol, -quantity);
-    
-        walletRepository.save(userWallet);
-        walletRepository.save(liquidityWallet);
-        walletRepository.save(usdtLiquidityWallet);
-    
-        recordTransaction(liquidityWallet, userWallet, symbol, quantity, price, TransactionType.BUY);
-    
-        return "✅ Asset purchased successfully!";
-    }
-
-    /*
-     * La venta siempre se hace por USDT
-     * Los usuarios después pueden cambiar USDT por la moneda fiat
-     */
-    @Transactional
-    @Override
-    public String sellAsset(Long userId, String symbol, double quantity) {
-        Optional<Wallet> optionalWallet = walletRepository.findByUserId(userId);
-        Optional<Wallet> liquidityWalletOpt = walletRepository.findByAddress("LP-" + symbol);
-    
-        if (optionalWallet.isEmpty()) return "❌ Wallet not found!";
-        if (liquidityWalletOpt.isEmpty()) return "❌ Liquidity pool for " + symbol + " not found!";
-    
-        Wallet userWallet = optionalWallet.get();
-        Wallet liquidityWallet = liquidityWalletOpt.get();
-    
-        double price = marketDataServiceI.fetchLivePriceForAsset(symbol);
-        double totalRevenue = quantity * price;
-    
-        Optional<Asset> existingAsset = userWallet.getAssets().stream()
-                .filter(a -> a.getSymbol().equals(symbol))
-                .findFirst();
-    
-        if (existingAsset.isEmpty() || existingAsset.get().getQuantity() < quantity) {
-            return "❌ Not enough assets to sell!";
-        }
-    
-        // CASO 1: Venta de USDT (Recibo dinero fiat)
-        if (symbol.equals("USDT")) {
-            if (liquidityWallet.getAssets().stream().anyMatch(a -> a.getSymbol().equals("USDT") && a.getQuantity() < quantity)) {
-                return "❌ Not enough USDT liquidity!";
-            }
-    
-            userWallet.setBalance(userWallet.getBalance() + totalRevenue);
-            updateWalletAssets(userWallet, symbol, -quantity);
-            updateWalletAssets(liquidityWallet, symbol, quantity);
-    
-        } else {
-            // CASO 2: Venta de otros assets (Recibo USDT)
-            Optional<Wallet> usdtLiquidityWalletOpt = walletRepository.findByAddress("LP-USDT");
-            if (usdtLiquidityWalletOpt.isEmpty()) return "❌ USDT liquidity pool not found!";
-            Wallet usdtLiquidityWallet = usdtLiquidityWalletOpt.get();
-    
-            Optional<Asset> usdtAssetOpt = usdtLiquidityWallet.getAssets().stream()
-                    .filter(a -> a.getSymbol().equals("USDT"))
-                    .findFirst();
-    
-            if (usdtAssetOpt.isEmpty() || usdtAssetOpt.get().getQuantity() < totalRevenue) {
-                return "❌ Not enough USDT in liquidity pool!";
-            }
-    
-            updateWalletAssets(userWallet, "USDT", totalRevenue);
-            updateWalletAssets(userWallet, symbol, -quantity);
-            updateWalletAssets(usdtLiquidityWallet, "USDT", -totalRevenue);
-            updateWalletAssets(liquidityWallet, symbol, quantity);
-    
-            walletRepository.save(usdtLiquidityWallet);
-        }
-    
-        recordTransaction(userWallet, liquidityWallet, symbol, quantity, price, TransactionType.SELL);
-    
-        walletRepository.save(userWallet);
-        walletRepository.save(liquidityWallet);
-    
-        return "✅ Asset sold successfully!";
     }
 
     /*
@@ -357,15 +228,6 @@ public class WalletServiceI implements WalletService {
     }
 
 
-
-    private static Path getPublicKeyPath(Wallet wallet) {
-        return Path.of(KEY_DIR, "wallet_" + wallet.getId() + "_public.pem");
-    }
-
-    private static Path getPrivateKeyPath(Wallet wallet) {
-        return Path.of(KEY_DIR, "wallet_" + wallet.getId() + "_private.pem");
-    }
-
     @Override
     public Map<String, Double> fetchLiveMarketPrices() {
         return getAssetPrices();
@@ -383,7 +245,7 @@ public class WalletServiceI implements WalletService {
 
     @Override
     @Transactional
-    public WalletBuyResponseDTO walletBuy(WalletBuyRequestDTO dto,Long userId) {
+    public WalletBuyResponseDTO walletBuy(WalletBuyRequestDTO dto, Long userId) {
         // 1. Obtener la billetera del usuario autenticado
         userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("❌ User not found"));
@@ -394,7 +256,7 @@ public class WalletServiceI implements WalletService {
         // 2. Verificar si hay un smart contract asociado al activo
         Optional<SmartContract> smartContract = smartContractRepository.findByName(dto.getSymbol());
         if (smartContract.isPresent()) {
-            boolean isBlocked = evaluateSmartContract(smartContract.get(), dto.getSymbol(),dto.getQuantity(), wallet);
+            boolean isBlocked = evaluateSmartContract(smartContract.get(), dto.getSymbol(), dto.getQuantity(), wallet);
             if (isBlocked) {
                 throw new BadRequestException(WalletBuyResponseDTO.error(dto.getSymbol()).getMessage());
             }
@@ -414,6 +276,15 @@ public class WalletServiceI implements WalletService {
         // 6. Descontar saldo y registrar la transacción
         wallet.setBalance(wallet.getBalance() - totalCost);
 
+        // Crear el nuevo bloque
+        Block newBlock = Block.builder()
+                .blockIndex(getNextBlockIndex()) // Implementa un método para obtener el siguiente índice
+                .previousHash(getLastBlockHash()) // Implementa un método para obtener el hash del último bloque
+                .isGenesis(false)
+                .timestamp(LocalDateTime.now())
+                .nonce(0) // Inicialmente 0, se actualizará durante la minería
+                .build();
+
         // Registrar la compra como transacción
         Transaction transaction = Transaction.builder()
                 .senderWallet(wallet)
@@ -421,21 +292,38 @@ public class WalletServiceI implements WalletService {
                 .assetSymbol(dto.getSymbol())
                 .quantity(dto.getQuantity())
                 .pricePerUnit(pricePerUnit)
-                .block("")
                 .type(TransactionType.BUY)
                 .timestamp(Instant.now())
-                .status(TransactionStatus.COMPLETED)
+                .status(TransactionStatus.PENDING) // Marca como pendiente
                 .fee(0.0)
                 .amount(BigDecimal.valueOf(totalCost))
                 .build();
 
+        // Agrega la transacción al bloque
+        newBlock.getTransactions().add(transaction);
+
+        // Guarda la transacción en la base de datos
         transactionRepository.save(transaction);
+
+        // Guarda el bloque en la base de datos
+        blockRepository.save(newBlock);
 
         // 7. Guardar cambios en la billetera
         walletRepository.save(wallet);
 
         return WalletBuyResponseDTO.success();
     }
+
+    private int getNextBlockIndex() {
+        Optional<Block> lastBlock = blockRepository.findTopByOrderByBlockIndexDesc();
+        return lastBlock.map(block -> block.getBlockIndex() + 1).orElse(0);
+    }
+
+    private String getLastBlockHash() {
+        Optional<Block> lastBlock = blockRepository.findTopByOrderByBlockIndexDesc();
+        return lastBlock.map(Block::getHash).orElse("0");
+    }
+
     @Override
     @Transactional
     public WalletSellResponseDTO walletSell(WalletSellRequestDTO dto, Long userId) {

@@ -24,7 +24,7 @@ public class BlockSeeder {
             Block genesisBlock = Block.builder()
                     .blockIndex(0)
                     .previousHash("0") // Hash inicial para el bloque génesis
-                    .data("") // Sin datos asociados
+                    .isGenesis(true) // Sin datos asociados
                     .timestamp(LocalDateTime.now())
                     .nonce(0) // El nonce inicial puede ser 0
                     .hash("") // Inicializa el hash como vacío

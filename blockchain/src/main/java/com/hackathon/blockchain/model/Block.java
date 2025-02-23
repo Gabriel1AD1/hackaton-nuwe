@@ -5,6 +5,7 @@ import lombok.*;
 import org.apache.commons.codec.digest.DigestUtils;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Getter
@@ -28,16 +29,17 @@ public class Block {
     @Column(nullable = false, length = 64)
     private String previousHash; // Hash del bloque anterior
 
-    @Column(nullable = false)
-    private String data; // Información dentro del bloque
+    @Column(nullable = false , name = "is_genesis")
+    private Boolean isGenesis; // Información dentro del bloque
 
     @Column(nullable = false)
     private LocalDateTime timestamp; // Fecha y hora de creación del bloque
 
     private int nonce; // Número utilizado para la minería del bloque
-
+    @OneToMany(mappedBy = "block", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Transaction> transactions;
     public String calculateHash() {
-        String input = blockIndex + previousHash + data + timestamp + nonce;
+        String input = blockIndex + previousHash + isGenesis + timestamp + nonce;
         // Calcula el hash en forma de byte array
         byte[] hashBytes = DigestUtils.sha256(input);
         // Convierte el byte array a una cadena hexadecimal

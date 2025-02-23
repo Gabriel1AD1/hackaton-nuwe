@@ -38,7 +38,7 @@ public class ApiResponse {
     }
 
     public static ApiResponseBuilder unauthorized(String message) {
-        return createResponse(HttpStatus.UNAUTHORIZED, 401L, message, List.of());
+        return createResponseSingleMessage("❌ Invalid credentials");
     }
     public static ApiResponseBuilder loginFailed() {
         return createResponseSingleMessage("❌ Invalid credentials");

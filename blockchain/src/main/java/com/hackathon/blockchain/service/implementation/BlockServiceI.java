@@ -34,8 +34,8 @@ public class BlockServiceI implements BlockService{
         // Crear el nuevo bloque
         Block newBlock = new Block();
         newBlock.setBlockIndex((int) (blockRepository.count() + 1)); // Asignar el índice del bloque
-        newBlock.setPreviousHash(blockRepository.findTopByOrderByBlockIndexDesc().getHash()); // Obtener el hash del bloque anterior
-        newBlock.setData(pendingTransactions.toString()); // Puedes personalizar cómo representar los datos
+        newBlock.setPreviousHash(blockRepository.findTopByOrderByBlockIndexDesc().get().getHash()); // Obtener el hash del bloque anterior
+        newBlock.setIsGenesis(false);
         newBlock.setTimestamp(LocalDateTime.now());
 
         // Proceso de minería: encontrar un nonce válido

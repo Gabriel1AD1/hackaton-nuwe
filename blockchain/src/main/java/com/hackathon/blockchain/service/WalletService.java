@@ -12,8 +12,7 @@ public interface WalletService {
     Optional<Wallet> getWalletByUserId(Long userId);
     Optional<Wallet> getWalletByAddress(String address);
     void initializeLiquidityPools(Map<String, Double> initialAssets);
-    String buyAsset(Long userId, String symbol, double quantity);
-    String sellAsset(Long userId, String symbol, double quantity);
+
     /*
      * Esta versión ya no almacena purchasePrice en Assets
      */

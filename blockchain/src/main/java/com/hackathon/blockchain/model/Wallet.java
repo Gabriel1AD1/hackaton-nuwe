@@ -4,6 +4,7 @@ import com.hackathon.blockchain.enums.AccountStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -36,5 +37,5 @@ public class Wallet {
     private AccountStatus accountStatus;
 
     @OneToMany(mappedBy = "wallet", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Asset> assets;
+    private List<Asset> assets = new ArrayList<>();
 }
