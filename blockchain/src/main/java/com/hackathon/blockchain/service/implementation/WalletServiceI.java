@@ -11,7 +11,6 @@ import com.hackathon.blockchain.repository.*;
 import com.hackathon.blockchain.service.WalletService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,60 +32,6 @@ public class WalletServiceI implements WalletService {
     private final WalletKeyRepository walletKeyRepository;
     private final AssetRepository assetRepository;
     private static final String KEY_DIR = "keys";
-
-    public Optional<Wallet> getWalletByUserId(Long userId) {
-        return walletRepository.findByUserId(userId);
-    }
-
-    public Optional<Wallet> getWalletByAddress(String address) {
-        return walletRepository.findByAddress(address);
-    }
-
-    @Transactional
-    @Override
-    public void initializeLiquidityPools(Map<String, Double> initialAssets) {
-        for (Map.Entry<String, Double> entry : initialAssets.entrySet()) {
-            String symbol = entry.getKey();
-            double initialQuantity = entry.getValue();
-
-            String liquidityWalletAddress = "LP-" + symbol;
-            Optional<Wallet> existingWallet = walletRepository.findByAddress(liquidityWalletAddress);
-
-            if (existingWallet.isEmpty()) {
-                Wallet liquidityWallet = new Wallet();
-                liquidityWallet.setAddress(liquidityWalletAddress);
-                liquidityWallet.setBalance(0.0);
-                walletRepository.save(liquidityWallet);
-
-                Asset asset = new Asset(null, symbol, initialQuantity, 0, liquidityWallet);
-                liquidityWallet.getAssets().add(asset);
-            }
-        }
-    }
-
-    /*
-     * Esta versión ya no almacena purchasePrice en Assets
-     */
-    @Override
-    public void updateWalletAssets(Wallet wallet, String assetSymbol, double amount) {
-        Optional<Asset> assetOpt = wallet.getAssets().stream()
-                .filter(asset -> asset.getSymbol().equalsIgnoreCase(assetSymbol))
-                .findFirst();
-    
-        if (assetOpt.isPresent()) {
-            Asset asset = assetOpt.get();
-            asset.setQuantity(asset.getQuantity() + amount);
-            if (asset.getQuantity() <= 0) {
-                wallet.getAssets().remove(asset);
-            }
-        } else if (amount > 0) {
-            Asset newAsset = new Asset();
-            newAsset.setSymbol(assetSymbol);
-            newAsset.setQuantity(amount);
-            newAsset.setWallet(wallet);
-            wallet.getAssets().add(newAsset);
-        }
-    }     
 
     private void recordTransaction(Wallet sender, Wallet receiver, String assetSymbol, double quantity, double price, TransactionType type) {
         transactionRepository.save(Transaction.builder()
@@ -113,18 +58,14 @@ public class WalletServiceI implements WalletService {
 
         Wallet wallet = Wallet.builder()
                 .user(user)
-                .address(generateWalletAddress())
-                .balance(100000.0)
+                .balance(1000000.0)
                 .accountStatus(AccountStatus.ACTIVE)
+                .address("LP-BTC")
                 .build();
 
         walletRepository.save(wallet);
 
         return "✅ Wallet successfully created! Address: " + wallet.getAddress();
-    }
-
-    private String generateWalletAddress() {
-        return DigestUtils.sha256Hex(UUID.randomUUID().toString());
     }
 
 
@@ -167,26 +108,6 @@ public class WalletServiceI implements WalletService {
     }
 
 
-    /**
-     * Devuelve un mapa con dos listas de transacciones:
-     * - "sent": transacciones enviadas (donde la wallet es remitente)
-     * - "received": transacciones recibidas (donde la wallet es destinataria)
-     */
-    @Override
-    public Map<String, List<Transaction>> getWalletTransactions(Long walletId) {
-        Optional<Wallet> walletOpt = walletRepository.findById(walletId);
-        if (walletOpt.isEmpty()) {
-            return Map.of("error", List.of());
-        }
-        Wallet wallet = walletOpt.get();
-        List<Transaction> sentTransactions = transactionRepository.findBySenderWallet(wallet);
-        List<Transaction> receivedTransactions = transactionRepository.findByReceiverWallet(wallet);
-        Map<String, List<Transaction>> result = new HashMap<>();
-        result.put("sent", sentTransactions);
-        result.put("received", receivedTransactions);
-        return result;
-    }
-
     // RETO BACKEND
 
     // Método para transferir el fee: deducirlo del wallet del emisor y sumarlo a la wallet de fees.
@@ -205,43 +126,6 @@ public class WalletServiceI implements WalletService {
         }
     }
 
-    // Método para crear una wallet para fees (solo USDT)
-    @Override
-    public String createFeeWallet() {
-        String feeWalletAddress = "FEES-USDT";
-        Optional<Wallet> existing = walletRepository.findByAddress(feeWalletAddress);
-        if (existing.isPresent()) {
-            return "Fee wallet already exists with address: " + feeWalletAddress;
-        }
-        Wallet feeWallet = new Wallet();
-        feeWallet.setAddress(feeWalletAddress);
-        feeWallet.setBalance(0.0);
-        feeWallet.setAccountStatus(AccountStatus.ACTIVE);
-        // Al no estar asociada a un usuario, se deja user en null
-        walletRepository.save(feeWallet);
-        return "Fee wallet created successfully with address: " + feeWalletAddress;
-    }
-    @Override
-    public Wallet findByUser(String username) {
-        return null;
-
-    }
-
-
-    @Override
-    public Map<String, Double> fetchLiveMarketPrices() {
-        return getAssetPrices();
-    }
-
-    @Override
-    public ResponseDTO fetchLivePriceForAsset(String symbol) {
-
-        double price = marketDataServiceI.fetchLivePriceForAsset(symbol);
-        if (price == -1){
-            throw new BadRequestException("❌ Asset not found or price unavailable: ".concat(symbol));
-        }
-        return ResponseDTO.createMessageForPriceAsset(symbol,price);
-    }
 
     @Override
     @Transactional
@@ -284,7 +168,7 @@ public class WalletServiceI implements WalletService {
                 .timestamp(LocalDateTime.now())
                 .nonce(0) // Inicialmente 0, se actualizará durante la minería
                 .build();
-
+        newBlock.setHash(newBlock.calculateHash());
         // Registrar la compra como transacción
         Transaction transaction = Transaction.builder()
                 .senderWallet(wallet)
@@ -298,12 +182,9 @@ public class WalletServiceI implements WalletService {
                 .fee(0.0)
                 .amount(BigDecimal.valueOf(totalCost))
                 .build();
-
-        // Agrega la transacción al bloque
-        newBlock.getTransactions().add(transaction);
-
         // Guarda la transacción en la base de datos
         transactionRepository.save(transaction);
+
 
         // Guarda el bloque en la base de datos
         blockRepository.save(newBlock);
@@ -322,74 +203,6 @@ public class WalletServiceI implements WalletService {
     private String getLastBlockHash() {
         Optional<Block> lastBlock = blockRepository.findTopByOrderByBlockIndexDesc();
         return lastBlock.map(Block::getHash).orElse("0");
-    }
-
-    @Override
-    @Transactional
-    public WalletSellResponseDTO walletSell(WalletSellRequestDTO dto, Long userId) {
-        // 1. Obtener la billetera del usuario autenticado
-        userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("❌ User not found"));
-
-        Wallet wallet = walletRepository.findByUserId(userId)
-                .orElseThrow(() -> new EntityNotFoundException("❌ Wallet not found"));
-
-        // 2. Verificar si hay un smart contract asociado al activo
-        Optional<SmartContract> smartContract = smartContractRepository.findByName(dto.getSymbol());
-        if (smartContract.isPresent()) {
-            boolean isBlocked = evaluateSmartContract(smartContract.get(), dto.getSymbol(), dto.getQuantity(), wallet);
-            if (isBlocked) {
-                throw new BadRequestException(WalletSellResponseDTO.error(dto.getSymbol()).getMessage());
-            }
-        }
-
-        // 3. Buscar el activo en la billetera
-        Asset asset = wallet.getAssets().stream()
-                .filter(a -> a.getSymbol().equals(dto.getSymbol()))
-                .findFirst()
-                .orElseThrow(() -> new BadRequestException(WalletSellResponseDTO.insufficientAssets(dto.getSymbol()).getMessage()));
-
-        // 4. Verificar si hay suficiente cantidad para vender
-        if (asset.getQuantity() < dto.getQuantity()) {
-            throw new BadRequestException(WalletSellResponseDTO.insufficientAssets(dto.getSymbol()).getMessage());
-        }
-
-        // 5. Obtener el precio actual del mercado
-        double pricePerUnit = marketDataServiceI.fetchLivePriceForAsset(dto.getSymbol());
-        double totalSale = pricePerUnit * dto.getQuantity();
-
-        // 6. Actualizar la cantidad del activo
-        asset.setQuantity(asset.getQuantity() - dto.getQuantity());
-
-        // Si la cantidad llega a 0, eliminar el activo de la billetera
-        if (asset.getQuantity() == 0) {
-            wallet.getAssets().remove(asset);
-            assetRepository.delete(asset);
-        }
-
-        // 7. Actualizar el balance de la billetera
-        wallet.setBalance(wallet.getBalance() + totalSale);
-
-        // 8. Registrar la venta como transacción
-        Transaction transaction = Transaction.builder()
-                .senderWallet(wallet)
-                .receiverWallet(wallet) // Se autoenvía la venta
-                .assetSymbol(dto.getSymbol())
-                .quantity(dto.getQuantity())
-                .pricePerUnit(pricePerUnit)
-                .type(TransactionType.SELL)
-                .timestamp(Instant.now())
-                .status(TransactionStatus.MINED)
-                .fee(0.0)
-                .amount(BigDecimal.valueOf(totalSale))
-                .build();
-
-        transactionRepository.save(transaction);
-
-        // 9. Guardar cambios en la billetera
-        walletRepository.save(wallet);
-
-        return WalletSellResponseDTO.success();
     }
 
     private boolean evaluateSmartContract(SmartContract contract, String symbol,Double quantity, Wallet wallet) {

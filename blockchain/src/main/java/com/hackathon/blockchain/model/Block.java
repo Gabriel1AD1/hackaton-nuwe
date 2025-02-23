@@ -5,6 +5,7 @@ import lombok.*;
 import org.apache.commons.codec.digest.DigestUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -37,7 +38,7 @@ public class Block {
 
     private int nonce; // Número utilizado para la minería del bloque
     @OneToMany(mappedBy = "block", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Transaction> transactions;
+    private List<Transaction> transactions = new ArrayList<>();
     public String calculateHash() {
         String input = blockIndex + previousHash + isGenesis + timestamp + nonce;
         // Calcula el hash en forma de byte array

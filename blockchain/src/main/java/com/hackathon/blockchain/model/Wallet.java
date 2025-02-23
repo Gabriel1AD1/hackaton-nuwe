@@ -23,7 +23,7 @@ public class Wallet {
     @JoinColumn(name = "user_id", unique = true)
     private User user;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String address;
 
     @Column(nullable = false)
