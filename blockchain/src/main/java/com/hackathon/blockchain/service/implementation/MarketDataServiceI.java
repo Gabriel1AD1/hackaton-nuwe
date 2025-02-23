@@ -23,16 +23,24 @@ public class MarketDataServiceI implements MarketDataService {
 
     @Override
     public double fetchLivePriceForAsset(String symbol) {
+        // Verificar si el símbolo comienza con "LP-"
+        if (symbol.contains("LP-")) {
+            // Quitar "LP-" del símbolo
+            symbol = symbol.substring(3);
+        }
         Map<String, Double> prices = fetchLiveMarketPrices();
         return prices.getOrDefault(symbol.toUpperCase(), -1.0);
     }
 
     @Override
     public ResponseDTO fetchLivePriceForAssetResponse(String symbol) {
+        // Buscar el precio del activo
         double price = this.fetchLivePriceForAsset(symbol);
         if (price == -1) {
             throw new BadRequestException("❌ Asset not found or price unavailable: " + symbol);
         }
+
         return ResponseDTO.createMessageForPriceAsset(symbol, price);
     }
+
 }

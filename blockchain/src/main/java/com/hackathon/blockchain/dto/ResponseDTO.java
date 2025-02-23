@@ -37,7 +37,6 @@ public class ResponseDTO {
     public static ResponseDTO simulateMiningMessage(String blockHash) {
         return new ResponseDTOBuilder().message("Block mined: " + blockHash).build();
     }
-
     public static ResponseDTO noPendingTransactionMine() {
         return new ResponseDTOBuilder().message("❌ No pending transactions to mine.").build();
     }
@@ -46,5 +45,11 @@ public class ResponseDTO {
     }
     public static ResponseDTO blockChainIsNotValid(){
         return new ResponseDTOBuilder().message("Blockchain valid: false").build();
+    }
+    public static ResponseDTO smartContractValidMessage(){
+        return new ResponseDTOBuilder().message("Smart contract is valid").build();
+    }
+    public static ResponseDTO smartContractInValidMessage(){
+        return new ResponseDTOBuilder().message("Smart contract is invalid").build();
     }
 }

@@ -45,13 +45,6 @@ public class WalletKeyServiceI implements WalletKeyService {
         log.debug("Directorio de claves: {}", dir.getAbsolutePath());
     }
 
-    public Optional<WalletKey> getKeysByWallet(Wallet wallet) {
-        return walletKeyRepository.findByWallet(wallet);
-    }
-
-    public Optional<WalletKey> getKeysByWalletId(Long walletId) {
-        return walletKeyRepository.findByWalletId(walletId);
-    }
     @Override
     /**
      * Genera un par de claves RSA de 2048 bits, las convierte a PEM y las almacena en archivos,
