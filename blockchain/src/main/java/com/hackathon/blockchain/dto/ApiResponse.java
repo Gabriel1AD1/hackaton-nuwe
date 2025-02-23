@@ -1,5 +1,6 @@
 package com.hackathon.blockchain.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,6 +15,7 @@ import java.util.List;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL) // 🔥 Ignora campos nulos
 public class ApiResponse {
 
     @JsonProperty("http_status")
@@ -60,7 +62,9 @@ public class ApiResponse {
     public static ApiResponseBuilder internalServerError(String message) {
         return createResponse(HttpStatus.INTERNAL_SERVER_ERROR, 500L, message, List.of());
     }
-
+    public static ApiResponseBuilder failedRequestMessage(String message) {
+        return createResponseSingleMessage(message);
+    }
     private static ApiResponseBuilder createResponse(HttpStatus httpStatus, Long codeStatus, String message, List<String> errors) {
         return ApiResponse.builder()
                 .httpStatus(httpStatus)
@@ -69,4 +73,10 @@ public class ApiResponse {
                 .errors(errors)
                 .timestamp(LocalDateTime.now());
     }
+    private static ApiResponseBuilder createResponseSingleMessage(String message) {
+        return ApiResponse.builder()
+                .message(message);
+    }
+
+
 }

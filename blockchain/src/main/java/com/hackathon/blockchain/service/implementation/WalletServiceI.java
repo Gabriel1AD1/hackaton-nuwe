@@ -1,16 +1,13 @@
-package com.hackathon.blockchain.implementation;
+package com.hackathon.blockchain.service.implementation;
 
-import com.hackathon.blockchain.dto.ResponseDTO;
-import com.hackathon.blockchain.dto.WalletGenerateKeysDTO;
+import com.hackathon.blockchain.dto.*;
 import com.hackathon.blockchain.enums.AccountStatus;
 import com.hackathon.blockchain.enums.TransactionStatus;
 import com.hackathon.blockchain.enums.TransactionType;
+import com.hackathon.blockchain.exception.BadRequestException;
 import com.hackathon.blockchain.exception.EntityNotFoundException;
 import com.hackathon.blockchain.model.*;
-import com.hackathon.blockchain.repository.TransactionRepository;
-import com.hackathon.blockchain.repository.UserRepository;
-import com.hackathon.blockchain.repository.WalletKeyRepository;
-import com.hackathon.blockchain.repository.WalletRepository;
+import com.hackathon.blockchain.repository.*;
 
 import com.hackathon.blockchain.service.MarketDataService;
 import com.hackathon.blockchain.service.WalletService;
@@ -22,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.math.BigDecimal;
 import java.nio.file.Paths;
 import java.security.*;
 import java.time.Instant;
@@ -36,9 +34,11 @@ public class WalletServiceI implements WalletService {
 
     private final WalletRepository walletRepository;
     private final TransactionRepository transactionRepository;
+    private final SmartContractRepository smartContractRepository;
     private final MarketDataService marketDataService;
     private final UserRepository userRepository;
     private final WalletKeyRepository walletKeyRepository;
+    private final AssetRepository assetRepository;
     private static final String KEY_DIR = "/keys/";
 
     public Optional<Wallet> getWalletByUserId(Long userId) {
@@ -457,6 +457,135 @@ public class WalletServiceI implements WalletService {
             throw new EntityNotFoundException("Asset not found");
         }
         return ResponseDTO.createMessageForPriceAsset(symbol,price);
+    }
+
+    @Override
+    @Transactional
+    public WalletBuyResponseDTO walletBuy(WalletBuyRequestDTO dto,Long userId) {
+        // 1. Obtener la billetera del usuario autenticado
+        userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("❌ User not found"));
+
+        Wallet wallet = walletRepository.findByUserId(userId)
+                .orElseThrow(() -> new EntityNotFoundException("❌ Wallet not found"));
+
+        // 2. Verificar si hay un smart contract asociado al activo
+        Optional<SmartContract> smartContract = smartContractRepository.findByName(dto.getSymbol());
+        if (smartContract.isPresent()) {
+            boolean isBlocked = evaluateSmartContract(smartContract.get(), dto.getSymbol(),dto.getQuantity(), wallet);
+            if (isBlocked) {
+                throw new BadRequestException(WalletBuyResponseDTO.error(dto.getSymbol()).getMessage());
+            }
+        }
+
+        // 3. Obtener el precio de la criptomoneda
+        double pricePerUnit = marketDataService.fetchLivePriceForAsset(dto.getSymbol());
+
+        // 4. Calcular el costo total
+        double totalCost = pricePerUnit * dto.getQuantity();
+
+        // 5. Verificar si la billetera tiene saldo suficiente
+        if (wallet.getBalance() < totalCost) {
+            throw new BadRequestException(WalletBuyResponseDTO.insufficientBalanceBuy(dto.getSymbol()).getMessage());
+        }
+
+        // 6. Descontar saldo y registrar la transacción
+        wallet.setBalance(wallet.getBalance() - totalCost);
+
+        // Registrar la compra como transacción
+        Transaction transaction = Transaction.builder()
+                .senderWallet(wallet)
+                .receiverWallet(wallet) // La billetera se autoenvía el activo
+                .assetSymbol(dto.getSymbol())
+                .quantity(dto.getQuantity())
+                .pricePerUnit(pricePerUnit)
+                .block("")
+                .type(TransactionType.BUY)
+                .timestamp(Instant.now())
+                .status(TransactionStatus.COMPLETED)
+                .fee(0.0)
+                .amount(BigDecimal.valueOf(totalCost))
+                .build();
+
+        transactionRepository.save(transaction);
+
+        // 7. Guardar cambios en la billetera
+        walletRepository.save(wallet);
+
+        return WalletBuyResponseDTO.success();
+    }
+    @Override
+    @Transactional
+    public WalletSellResponseDTO walletSell(WalletSellRequestDTO dto, Long userId) {
+        // 1. Obtener la billetera del usuario autenticado
+        userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("❌ User not found"));
+
+        Wallet wallet = walletRepository.findByUserId(userId)
+                .orElseThrow(() -> new EntityNotFoundException("❌ Wallet not found"));
+
+        // 2. Verificar si hay un smart contract asociado al activo
+        Optional<SmartContract> smartContract = smartContractRepository.findByName(dto.getSymbol());
+        if (smartContract.isPresent()) {
+            boolean isBlocked = evaluateSmartContract(smartContract.get(), dto.getSymbol(), dto.getQuantity(), wallet);
+            if (isBlocked) {
+                throw new BadRequestException(WalletSellResponseDTO.error(dto.getSymbol()).getMessage());
+            }
+        }
+
+        // 3. Buscar el activo en la billetera
+        Asset asset = wallet.getAssets().stream()
+                .filter(a -> a.getSymbol().equals(dto.getSymbol()))
+                .findFirst()
+                .orElseThrow(() -> new BadRequestException(WalletSellResponseDTO.insufficientAssets(dto.getSymbol()).getMessage()));
+
+        // 4. Verificar si hay suficiente cantidad para vender
+        if (asset.getQuantity() < dto.getQuantity()) {
+            throw new BadRequestException(WalletSellResponseDTO.insufficientAssets(dto.getSymbol()).getMessage());
+        }
+
+        // 5. Obtener el precio actual del mercado
+        double pricePerUnit = marketDataService.fetchLivePriceForAsset(dto.getSymbol());
+        double totalSale = pricePerUnit * dto.getQuantity();
+
+        // 6. Actualizar la cantidad del activo
+        asset.setQuantity(asset.getQuantity() - dto.getQuantity());
+
+        // Si la cantidad llega a 0, eliminar el activo de la billetera
+        if (asset.getQuantity() == 0) {
+            wallet.getAssets().remove(asset);
+            assetRepository.delete(asset);
+        }
+
+        // 7. Actualizar el balance de la billetera
+        wallet.setBalance(wallet.getBalance() + totalSale);
+
+        // 8. Registrar la venta como transacción
+        Transaction transaction = Transaction.builder()
+                .senderWallet(wallet)
+                .receiverWallet(wallet) // Se autoenvía la venta
+                .assetSymbol(dto.getSymbol())
+                .quantity(dto.getQuantity())
+                .pricePerUnit(pricePerUnit)
+                .type(TransactionType.SELL)
+                .timestamp(Instant.now())
+                .status(TransactionStatus.MINED)
+                .fee(0.0)
+                .amount(BigDecimal.valueOf(totalSale))
+                .build();
+
+        transactionRepository.save(transaction);
+
+        // 9. Guardar cambios en la billetera
+        walletRepository.save(wallet);
+
+        return WalletSellResponseDTO.success();
+    }
+
+    private boolean evaluateSmartContract(SmartContract contract, String symbol,Double quantity, Wallet wallet) {
+        // Aquí se evaluaría la condición definida en el contrato inteligente.
+        // En una implementación real, esto podría interpretarse con un motor de reglas.
+        return false;
     }
 
     private String encodeKey(PublicKey key) {

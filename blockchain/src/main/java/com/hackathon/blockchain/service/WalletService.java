@@ -1,7 +1,6 @@
 package com.hackathon.blockchain.service;
 
-import com.hackathon.blockchain.dto.ResponseDTO;
-import com.hackathon.blockchain.dto.WalletGenerateKeysDTO;
+import com.hackathon.blockchain.dto.*;
 import com.hackathon.blockchain.model.Transaction;
 import com.hackathon.blockchain.model.Wallet;
 
@@ -40,4 +39,9 @@ public interface WalletService {
     Map<String, Double> fetchLiveMarketPrices();
 
     ResponseDTO fetchLivePriceForAsset(String symbol);
+
+
+    WalletBuyResponseDTO walletBuy(WalletBuyRequestDTO dto, Long userId);
+
+    WalletSellResponseDTO walletSell(WalletSellRequestDTO dto, Long userId);
 }

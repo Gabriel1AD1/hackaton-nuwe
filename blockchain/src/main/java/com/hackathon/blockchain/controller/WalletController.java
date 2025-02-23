@@ -1,6 +1,8 @@
 package com.hackathon.blockchain.controller;
 
 import com.hackathon.blockchain.dto.ResponseDTO;
+import com.hackathon.blockchain.dto.WalletBuyRequestDTO;
+import com.hackathon.blockchain.dto.WalletBuyResponseDTO;
 import com.hackathon.blockchain.dto.WalletGenerateKeysDTO;
 import com.hackathon.blockchain.model.Wallet;
 import com.hackathon.blockchain.model.WalletKey;
@@ -33,5 +35,9 @@ public class WalletController extends ControllerBase {
     @GetMapping("/price/{symbol}")
     public ResponseEntity<ResponseDTO> getAssetPrice(@PathVariable String symbol) {
         return ResponseEntity.ok(walletService.fetchLivePriceForAsset(symbol));
+    }
+    @PostMapping("/buy")
+    public ResponseEntity<WalletBuyResponseDTO> buyWallet(@RequestBody WalletBuyRequestDTO dto){
+        return ResponseEntity.ok(walletService.walletBuy(dto, getUserSessionSecurity().getUserId()));
     }
 }

@@ -40,6 +40,11 @@ public class GlobalExceptionHandler {
         ApiResponse response = ApiResponse.methodNotAllowed(ex.getMethod(), List.of(Objects.requireNonNull(ex.getSupportedMethods()))).build();
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(response);
     }
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ApiResponse> handleBadRequestException(BadRequestException ex) {
+        ApiResponse response = ApiResponse.failedRequestMessage(ex.getMessage()).build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
     @ExceptionHandler(RuntimeException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ResponseEntity<ApiResponse> handleRuntimeException(RuntimeException ex) {
