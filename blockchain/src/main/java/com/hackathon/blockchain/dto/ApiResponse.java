@@ -38,7 +38,13 @@ public class ApiResponse {
     public static ApiResponseBuilder unauthorized(String message) {
         return createResponse(HttpStatus.UNAUTHORIZED, 401L, message, List.of());
     }
-
+    public static ApiResponseBuilder loginFailed() {
+        return createResponse(HttpStatus.BAD_REQUEST, 400L, "Password or Username Invalid", List.of());
+    }
+    public static ApiResponseBuilder methodNotAllowed(String method, List<String> supportedMethods) {
+        String message = String.format("El método %s no está permitido. Métodos soportados: %s", method, String.join(", ", supportedMethods));
+        return createResponse(HttpStatus.METHOD_NOT_ALLOWED, 405L, message, supportedMethods);
+    }
     public static ApiResponseBuilder forbidden(String message) {
         return createResponse(HttpStatus.FORBIDDEN, 403L, message, List.of());
     }

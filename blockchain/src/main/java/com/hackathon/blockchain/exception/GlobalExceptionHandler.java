@@ -3,11 +3,13 @@ package com.hackathon.blockchain.exception;
 import com.hackathon.blockchain.dto.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 import java.util.List;
+import java.util.Objects;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -27,6 +29,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse> handle(UnauthorizedException ex) {
         ApiResponse response = ApiResponse.unauthorized(ex.getMessage()).build();
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    }
+    @ExceptionHandler(AuthRequestFailedException.class)
+    public ResponseEntity<ApiResponse> handleAuthRequestFailedException() {
+        ApiResponse response = ApiResponse.loginFailed().build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse> handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException ex) {
+        ApiResponse response = ApiResponse.methodNotAllowed(ex.getMethod(), List.of(Objects.requireNonNull(ex.getSupportedMethods()))).build();
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(response);
     }
     @ExceptionHandler(RuntimeException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)

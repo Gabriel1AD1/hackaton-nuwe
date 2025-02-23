@@ -20,11 +20,9 @@ public class WalletKey {
     @JoinColumn(name = "wallet_id", nullable = false, unique = true)
     private Wallet wallet;
 
-    @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String publicKey;
 
-    @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String privateKey;
 }

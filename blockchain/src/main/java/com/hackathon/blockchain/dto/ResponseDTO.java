@@ -30,4 +30,7 @@ public class ResponseDTO {
     public static ResponseDTO createWallerMessage(String message) {
         return new ResponseDTOBuilder().message(message).build();
     }
+    public static ResponseDTO createMessageForPriceAsset(String symbol, Double price) {
+        return new ResponseDTOBuilder().message("Current price of " + symbol.toUpperCase() + ": $" + price).build();
+    }
 }

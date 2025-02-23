@@ -2,6 +2,7 @@ package com.hackathon.blockchain.service;
 
 import com.hackathon.blockchain.enums.SmartContractAction;
 import com.hackathon.blockchain.enums.TransactionStatus;
+import com.hackathon.blockchain.implementation.WalletServiceI;
 import com.hackathon.blockchain.model.SmartContract;
 import com.hackathon.blockchain.model.Transaction;
 import com.hackathon.blockchain.repository.SmartContractRepository;
@@ -22,7 +23,7 @@ public class SmartContractEvaluationService {
 
     private final SmartContractRepository smartContractRepository;
     private final TransactionRepository transactionRepository;
-    private final WalletService walletService;
+    private final WalletServiceI walletServiceI;
     private final WalletKeyService walletKeyService; // Para obtener la clave pública del emisor
     private final SpelExpressionParser parser = new SpelExpressionParser();
 
@@ -71,7 +72,7 @@ public class SmartContractEvaluationService {
                     if (SmartContractAction.CANCEL_TRANSACTION.equals(contract.getAction())) {
                         tx.setStatus(TransactionStatus.CANCELED);
                     } else if (SmartContractAction.TRANSFER_FEE.equals(contract.getAction())) {
-                        walletService.transferFee(tx, contract.getActionValue());
+                        walletServiceI.transferFee(tx, contract.getActionValue());
                         tx.setStatus(TransactionStatus.PROCESSED_CONTRACT);
                     }
                     transactionRepository.save(tx);
