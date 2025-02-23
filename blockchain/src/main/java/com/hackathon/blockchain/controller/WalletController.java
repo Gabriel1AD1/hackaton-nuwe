@@ -28,14 +28,6 @@ public class WalletController extends ControllerBase {
     public ResponseEntity<WalletGenerateKeysDTO> generateKeys()  {
         return ResponseEntity.ok(walletService.generateKeys(getUserSessionSecurity().getUserId()));
     }
-    @GetMapping("/market/prices")
-    public ResponseEntity<Map<String,Double>> getMarketPrices() {
-        return ResponseEntity.ok(walletService.fetchLiveMarketPrices());
-    }
-    @GetMapping("/price/{symbol}")
-    public ResponseEntity<ResponseDTO> getAssetPrice(@PathVariable String symbol) {
-        return ResponseEntity.ok(walletService.fetchLivePriceForAsset(symbol));
-    }
     @PostMapping("/buy")
     public ResponseEntity<WalletBuyResponseDTO> buyWallet(@RequestBody WalletBuyRequestDTO dto){
         return ResponseEntity.ok(walletService.walletBuy(dto, getUserSessionSecurity().getUserId()));

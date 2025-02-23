@@ -454,7 +454,7 @@ public class WalletServiceI implements WalletService {
 
         double price = marketDataService.fetchLivePriceForAsset(symbol);
         if (price == -1){
-            throw new EntityNotFoundException("Asset not found");
+            throw new BadRequestException("❌ Asset not found or price unavailable: ".concat(symbol));
         }
         return ResponseDTO.createMessageForPriceAsset(symbol,price);
     }

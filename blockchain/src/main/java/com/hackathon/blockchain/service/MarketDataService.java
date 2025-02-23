@@ -1,5 +1,7 @@
 package com.hackathon.blockchain.service;
 
+import com.hackathon.blockchain.dto.ResponseDTO;
+import com.hackathon.blockchain.exception.BadRequestException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -24,5 +26,13 @@ public class MarketDataService {
     public double fetchLivePriceForAsset(String symbol) {
         Map<String, Double> prices = fetchLiveMarketPrices();
         return prices.getOrDefault(symbol.toUpperCase(), -1.0); // Retorna -1 si el símbolo no existe
+    }
+    public ResponseDTO fetchLivePriceForAssetResponse(String symbol) {
+
+        double price = this.fetchLivePriceForAsset(symbol);
+        if (price == -1){
+            throw new BadRequestException("❌ Asset not found or price unavailable: ".concat(symbol));
+        }
+        return ResponseDTO.createMessageForPriceAsset(symbol,price);
     }
 }

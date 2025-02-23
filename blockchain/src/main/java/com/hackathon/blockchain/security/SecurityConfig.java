@@ -27,7 +27,10 @@ public class SecurityConfig {
                                 "/auth/register",
                                 "/auth/login",
                                 "/auth/logout",
-                                "/health").permitAll() // Permitir acceso a estas rutas
+                                "/health",
+                                "/market/prices",
+                                "/market/price/**",
+                                "/api/dashboard").permitAll() // Permitir acceso a estas rutas
                         .anyRequest().authenticated() // Cualquier otra solicitud requiere autenticación
                 )
                 .addFilterBefore(sessionAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)

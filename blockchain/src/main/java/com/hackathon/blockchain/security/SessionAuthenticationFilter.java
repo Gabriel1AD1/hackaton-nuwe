@@ -60,7 +60,12 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
         if (request.getRequestURI().startsWith("/auth/register")||
                 request.getRequestURI().startsWith("/auth/login")||
                 request.getRequestURI().startsWith("/auth/logout") ||
-                request.getRequestURI().startsWith("/health")) {
+                request.getRequestURI().startsWith("/health") ||
+                request.getRequestURI().startsWith("/market/prices")||
+                request.getRequestURI().startsWith("/market/price")
+        )
+
+        {
             filterChain.doFilter(request, response);
             return true;
         }
