@@ -33,7 +33,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthRequestFailedException.class)
     public ResponseEntity<ApiResponse> handleAuthRequestFailedException() {
         ApiResponse response = ApiResponse.loginFailed().build();
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ApiResponse> handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException ex) {
