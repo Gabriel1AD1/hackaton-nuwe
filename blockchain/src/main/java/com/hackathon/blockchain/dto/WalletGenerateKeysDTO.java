@@ -18,13 +18,11 @@ public class WalletGenerateKeysDTO {
     @JsonProperty("absolutePath")
     private String absolutePath;
     public static WalletGenerateKeysDTO generateKey(String publicKey, String absolutePath, Long generate) {
-        String pemPublicKey = "-----BEGIN PUBLIC KEY-----\n" +
-                publicKey +
-                "\n-----END PUBLIC KEY-----";
+
 
         return WalletGenerateKeysDTO.builder()
                 .message("Keys generated/retrieved successfully for wallet id: " + generate)
-                .publicKey(pemPublicKey)
+                .publicKey(publicKey)
                 .absolutePath(absolutePath)
                 .build();
     }

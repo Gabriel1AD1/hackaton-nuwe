@@ -1,8 +1,7 @@
-package com.hackathon.blockchain.service;
+package com.hackathon.blockchain.service.implementation;
 
 import com.hackathon.blockchain.enums.SmartContractAction;
 import com.hackathon.blockchain.enums.TransactionStatus;
-import com.hackathon.blockchain.service.implementation.WalletServiceI;
 import com.hackathon.blockchain.model.SmartContract;
 import com.hackathon.blockchain.model.Transaction;
 import com.hackathon.blockchain.repository.SmartContractRepository;

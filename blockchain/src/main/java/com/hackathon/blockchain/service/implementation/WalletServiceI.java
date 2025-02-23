@@ -9,23 +9,27 @@ import com.hackathon.blockchain.exception.EntityNotFoundException;
 import com.hackathon.blockchain.model.*;
 import com.hackathon.blockchain.repository.*;
 
-import com.hackathon.blockchain.service.MarketDataService;
 import com.hackathon.blockchain.service.WalletService;
+import com.hackathon.blockchain.utils.PemUtil;
 import lombok.AllArgsConstructor;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.*;
 import java.time.Instant;
 import java.util.*;
 
 import lombok.extern.slf4j.Slf4j;
+
+import static com.hackathon.blockchain.utils.EncodeUtils.encodeKey;
 
 @Slf4j
 @Service
@@ -35,11 +39,11 @@ public class WalletServiceI implements WalletService {
     private final WalletRepository walletRepository;
     private final TransactionRepository transactionRepository;
     private final SmartContractRepository smartContractRepository;
-    private final MarketDataService marketDataService;
+    private final MarketDataServiceI marketDataServiceI;
     private final UserRepository userRepository;
     private final WalletKeyRepository walletKeyRepository;
     private final AssetRepository assetRepository;
-    private static final String KEY_DIR = "/keys/";
+    private static final String KEY_DIR = "keys";
 
     public Optional<Wallet> getWalletByUserId(Long userId) {
         return walletRepository.findByUserId(userId);
@@ -91,7 +95,7 @@ public class WalletServiceI implements WalletService {
         Wallet liquidityWallet = liquidityWalletOpt.get();
         Wallet usdtLiquidityWallet = usdtLiquidityWalletOpt.get();
     
-        double price = marketDataService.fetchLivePriceForAsset(symbol);
+        double price = marketDataServiceI.fetchLivePriceForAsset(symbol);
         double totalCost = quantity * price;
     
         if (symbol.equals("USDT")) {
@@ -149,7 +153,7 @@ public class WalletServiceI implements WalletService {
         Wallet userWallet = optionalWallet.get();
         Wallet liquidityWallet = liquidityWalletOpt.get();
     
-        double price = marketDataService.fetchLivePriceForAsset(symbol);
+        double price = marketDataServiceI.fetchLivePriceForAsset(symbol);
         double totalRevenue = quantity * price;
     
         Optional<Asset> existingAsset = userWallet.getAssets().stream()
@@ -200,11 +204,6 @@ public class WalletServiceI implements WalletService {
         return "✅ Asset sold successfully!";
     }
 
-    @Override
-    public WalletGenerateKeysDTO newKeyGenerate(Long userId) {
-        return null;
-    }
-
     /*
      * Esta versión ya no almacena purchasePrice en Assets
      */
@@ -249,13 +248,13 @@ public class WalletServiceI implements WalletService {
         );
         Optional<Wallet> existingWallet = walletRepository.findByUserId(user.getId());
         if (existingWallet.isPresent()) {
-            return "❌ You already have a wallet created.";
+            throw new BadRequestException("❌ You already have a wallet created.");
         }
 
         Wallet wallet = Wallet.builder()
                 .user(user)
                 .address(generateWalletAddress())
-                .balance(10000.0)
+                .balance(100000.0)
                 .accountStatus(AccountStatus.ACTIVE)
                 .build();
 
@@ -269,46 +268,7 @@ public class WalletServiceI implements WalletService {
     }
 
 
-    // Ejecuto esta función para tener patrimonios de carteras actualizados continuamente y que no contenga valores estáticos
-    @Scheduled(fixedRate = 30000) // Se ejecuta cada 30 segundos
-    @Transactional
-    public void updateWalletBalancesScheduled() {
-        log.info("🔄 Updating wallet net worths based on live market prices...");
-    
-        List<Wallet> wallets = walletRepository.findAll();
-        for (Wallet wallet : wallets) {
-            double totalValue = 0.0;
-    
-            for (Asset asset : wallet.getAssets()) {
-                double marketPrice = marketDataService.fetchLivePriceForAsset(asset.getSymbol());
-                double assetValue = asset.getQuantity() * marketPrice;
-                totalValue += assetValue;
-    
-                log.info("💰 Asset {} - Quantity: {} - Market Price: {} - Total Value: {}",
-                        asset.getSymbol(), asset.getQuantity(), marketPrice, assetValue);
-            }
-    
-            if (wallet.getUser() != null) {
-                totalValue += wallet.getBalance();
-            }
-    
-            double previousNetWorth = wallet.getNetWorth();
-            wallet.setNetWorth(totalValue);
-            walletRepository.save(wallet);
-    
-            log.info("📊 Wallet [{}] - Previous Net Worth: {} - Updated Net Worth: {}",
-                    wallet.getAddress(), previousNetWorth, totalValue);
-    
-            Wallet savedWallet = walletRepository.findById(wallet.getId()).orElse(null);
-            if (savedWallet != null) {
-                log.info("✅ Confirmed DB Update - Wallet [{}] New Net Worth: {}", savedWallet.getAddress(), savedWallet.getNetWorth());
-            } else {
-                log.error("❌ Failed to fetch wallet [{}] after update!", wallet.getAddress());
-            }
-        }
-    
-        log.info("✅ All wallet net worths updated successfully!");
-    }
+
     @Override
     public Map<String, Object> getWalletBalance(Long userId) {
         Optional<Wallet> optionalWallet = walletRepository.findByUserId(userId);
@@ -318,7 +278,7 @@ public class WalletServiceI implements WalletService {
         }
     
         Wallet wallet = optionalWallet.get();
-        Map<String, Double> assetPrices = marketDataService.fetchLiveMarketPrices();
+        Map<String, Double> assetPrices = marketDataServiceI.fetchLiveMarketPrices();
     
         Map<String, Double> assetsMap = new HashMap<>();
         double netWorth = wallet.getBalance();
@@ -403,6 +363,7 @@ public class WalletServiceI implements WalletService {
     public WalletGenerateKeysDTO generateKeys(Long userId) {
         Wallet wallet = walletRepository.findByUserId(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Wallet not found for user"));
+
         var responseDb = walletKeyRepository.findByWallet(wallet).orElseGet(() -> {
 
             // Generar claves RSA
@@ -417,42 +378,62 @@ public class WalletServiceI implements WalletService {
 
             String publicKeyStr = encodeKey(pair.getPublic());
             String privateKeyStr = encodeKey(pair.getPrivate());
+            Path privateKeyPath = getPrivateKeyPath(wallet);
+            Path publicKeyPath = getPublicKeyPath(wallet);
 
-            // Guardar en archivos
-            try {
-                saveKeyToFile(wallet.getId(), "private.pem", privateKeyStr);
-            } catch (Exception e) {
-                throw new RuntimeException("Error generating keys", e);
-            }
-            try {
-                saveKeyToFile(wallet.getId(), "public.pem", publicKeyStr);
-            } catch (Exception e) {
-                throw new RuntimeException("Error generating keys", e);
-            }
+
+            // Convertir las claves a formato PEM
+            String publicKeyPEM = PemUtil.toPEMFormatPublic(publicKeyStr);
+            String privateKeyPEM = PemUtil.toPEMFormatPrivate(privateKeyStr);
+            saveWalletsKeys(privateKeyPath, privateKeyPEM, publicKeyPath, publicKeyPEM);
 
             // Crear y guardar con Builder
             WalletKey newWalletKey = WalletKey.builder()
                     .wallet(wallet)
-                    .publicKey(publicKeyStr)
-                    .privateKey(privateKeyStr)
+                    .publicKey(publicKeyPEM)
+                    .privateKey(privateKeyPEM)
                     .build();
 
             return walletKeyRepository.save(newWalletKey);
 
         });
         // Verificar si ya existen claves
-        return WalletGenerateKeysDTO.generateKey(responseDb.getPublicKey(), "/abs/path/to/keys",wallet.getId());
+        String absolutePath = Paths.get(KEY_DIR, "wallet_" + wallet.getId() + "_public.pem").toString();
+        log.info("Claves guardadas en: {}", absolutePath);
+        return WalletGenerateKeysDTO.generateKey(responseDb.getPublicKey(), absolutePath,wallet.getId());
+    }
+
+    private static void saveWalletsKeys(Path privateKeyPath, String privateKeyPEM, Path publicKeyPath, String publicKeyPEM) {
+        saveWalletKeyPem(privateKeyPath, privateKeyPEM);
+        saveWalletKeyPem(publicKeyPath, publicKeyPEM);
+    }
+
+    private static void saveWalletKeyPem(Path privateKeyPath, String privateKeyPEM) {
+        // Guardar en archivos
+        try (FileOutputStream fos = new FileOutputStream(privateKeyPath.toFile())) {
+            fos.write(privateKeyPEM.getBytes());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static Path getPublicKeyPath(Wallet wallet) {
+        return Path.of(KEY_DIR, "wallet_" + wallet.getId() + "_public.pem");
+    }
+
+    private static Path getPrivateKeyPath(Wallet wallet) {
+        return Path.of(KEY_DIR, "wallet_" + wallet.getId() + "_private.pem");
     }
 
     @Override
     public Map<String, Double> fetchLiveMarketPrices() {
-        return marketDataService.fetchLiveMarketPrices();
+        return marketDataServiceI.fetchLiveMarketPrices();
     }
 
     @Override
     public ResponseDTO fetchLivePriceForAsset(String symbol) {
 
-        double price = marketDataService.fetchLivePriceForAsset(symbol);
+        double price = marketDataServiceI.fetchLivePriceForAsset(symbol);
         if (price == -1){
             throw new BadRequestException("❌ Asset not found or price unavailable: ".concat(symbol));
         }
@@ -479,7 +460,7 @@ public class WalletServiceI implements WalletService {
         }
 
         // 3. Obtener el precio de la criptomoneda
-        double pricePerUnit = marketDataService.fetchLivePriceForAsset(dto.getSymbol());
+        double pricePerUnit = marketDataServiceI.fetchLivePriceForAsset(dto.getSymbol());
 
         // 4. Calcular el costo total
         double totalCost = pricePerUnit * dto.getQuantity();
@@ -545,7 +526,7 @@ public class WalletServiceI implements WalletService {
         }
 
         // 5. Obtener el precio actual del mercado
-        double pricePerUnit = marketDataService.fetchLivePriceForAsset(dto.getSymbol());
+        double pricePerUnit = marketDataServiceI.fetchLivePriceForAsset(dto.getSymbol());
         double totalSale = pricePerUnit * dto.getQuantity();
 
         // 6. Actualizar la cantidad del activo
@@ -588,21 +569,6 @@ public class WalletServiceI implements WalletService {
         return false;
     }
 
-    private String encodeKey(PublicKey key) {
-        return Base64.getEncoder().encodeToString(key.getEncoded());
-    }
 
-    private String encodeKey(PrivateKey key) {
-        return Base64.getEncoder().encodeToString(key.getEncoded());
-    }
-
-    private void saveKeyToFile(Long walletId, String fileName, String keyContent) throws Exception {
-        String filePath = Paths.get(KEY_DIR, "wallet_" + walletId + "_" + fileName).toString();
-        File file = new File(filePath);
-        file.getParentFile().mkdirs();
-        try (FileWriter writer = new FileWriter(file)) {
-            writer.write(keyContent);
-        }
-    }
 
 }

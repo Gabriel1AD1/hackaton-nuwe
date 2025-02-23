@@ -14,7 +14,6 @@ public interface WalletService {
     void initializeLiquidityPools(Map<String, Double> initialAssets);
     String buyAsset(Long userId, String symbol, double quantity);
     String sellAsset(Long userId, String symbol, double quantity);
-    WalletGenerateKeysDTO newKeyGenerate(Long userId);
     /*
      * Esta versión ya no almacena purchasePrice en Assets
      */

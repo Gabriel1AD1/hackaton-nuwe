@@ -1,8 +1,9 @@
-package com.hackathon.blockchain.service;
+package com.hackathon.blockchain.service.implementation;
 
 import com.hackathon.blockchain.model.Wallet;
 import com.hackathon.blockchain.model.WalletKey;
 import com.hackathon.blockchain.repository.WalletKeyRepository;
+import com.hackathon.blockchain.repository.WalletRepository;
 import com.hackathon.blockchain.utils.PemUtil;
 import org.springframework.stereotype.Service;
 import java.io.File;
@@ -25,9 +26,11 @@ public class WalletKeyService {
 
     private static final String KEYS_FOLDER = "keys";
     private final WalletKeyRepository walletKeyRepository;
+    private final WalletRepository walletRepository;
 
-    public WalletKeyService(WalletKeyRepository walletKeyRepository) {
+    public WalletKeyService(WalletKeyRepository walletKeyRepository, WalletRepository walletRepository) {
         this.walletKeyRepository = walletKeyRepository;
+        this.walletRepository = walletRepository;
         // Asegurarse de que la carpeta /keys exista
         File dir = new File(KEYS_FOLDER);
         if (!dir.exists()) {

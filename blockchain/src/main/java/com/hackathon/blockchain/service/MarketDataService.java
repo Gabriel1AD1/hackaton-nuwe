@@ -1,38 +1,14 @@
 package com.hackathon.blockchain.service;
 
 import com.hackathon.blockchain.dto.ResponseDTO;
-import com.hackathon.blockchain.exception.BadRequestException;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
 
-@Service
-public class MarketDataService {
+public interface MarketDataService {
 
-    private final RestTemplate restTemplate;
+    Map<String, Double> fetchLiveMarketPrices();
 
-    public MarketDataService(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
-    }
+    double fetchLivePriceForAsset(String symbol);
 
-    // Obtener todos los precios
-    public Map<String, Double> fetchLiveMarketPrices() {
-        String apiUrl = "https://faas-lon1-917a94a7.doserverless.co/api/v1/web/fn-3d8ede30-848f-4a7a-acc2-22ba0cd9a382/default/fake-market-prices";
-        return restTemplate.getForObject(apiUrl, Map.class);
-    }
-
-    // Obtener el precio de un activo específico
-    public double fetchLivePriceForAsset(String symbol) {
-        Map<String, Double> prices = fetchLiveMarketPrices();
-        return prices.getOrDefault(symbol.toUpperCase(), -1.0); // Retorna -1 si el símbolo no existe
-    }
-    public ResponseDTO fetchLivePriceForAssetResponse(String symbol) {
-
-        double price = this.fetchLivePriceForAsset(symbol);
-        if (price == -1){
-            throw new BadRequestException("❌ Asset not found or price unavailable: ".concat(symbol));
-        }
-        return ResponseDTO.createMessageForPriceAsset(symbol,price);
-    }
+    ResponseDTO fetchLivePriceForAssetResponse(String symbol);
 }
