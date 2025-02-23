@@ -7,7 +7,6 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Date;
 
 @Entity
 @Getter

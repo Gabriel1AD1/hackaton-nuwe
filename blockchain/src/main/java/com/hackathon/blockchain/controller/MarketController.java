@@ -2,7 +2,6 @@ package com.hackathon.blockchain.controller;
 
 import com.hackathon.blockchain.dto.ResponseDTO;
 import com.hackathon.blockchain.service.MarketDataService;
-import com.hackathon.blockchain.service.implementation.MarketDataServiceI;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;

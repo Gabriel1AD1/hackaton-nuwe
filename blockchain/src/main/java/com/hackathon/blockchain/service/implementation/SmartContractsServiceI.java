@@ -6,7 +6,6 @@ import com.hackathon.blockchain.dto.SmartContractResponseDTO;
 import com.hackathon.blockchain.enums.SmartContractStatus;
 import com.hackathon.blockchain.exception.EntityNotFoundException;
 import com.hackathon.blockchain.model.SmartContract;
-import com.hackathon.blockchain.model.User;
 import com.hackathon.blockchain.model.Wallet;
 import com.hackathon.blockchain.model.WalletKey;
 import com.hackathon.blockchain.repository.SmartContractRepository;

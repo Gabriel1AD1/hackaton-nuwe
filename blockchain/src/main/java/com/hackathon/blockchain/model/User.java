@@ -4,8 +4,6 @@ package com.hackathon.blockchain.model;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.sql.ConnectionBuilder;
-
 @Entity
 @Getter
 @Setter

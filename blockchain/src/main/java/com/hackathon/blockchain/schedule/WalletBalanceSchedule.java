@@ -4,7 +4,6 @@ import com.hackathon.blockchain.model.Asset;
 import com.hackathon.blockchain.model.Wallet;
 import com.hackathon.blockchain.repository.WalletRepository;
 import com.hackathon.blockchain.service.MarketDataService;
-import com.hackathon.blockchain.service.implementation.MarketDataServiceI;
 import lombok.AllArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

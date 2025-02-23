@@ -73,7 +73,11 @@ public class WalletKeyServiceI implements WalletKeyService {
             saveWalletsKeys(privateKeyPath, privateKeyPEM, publicKeyPath, publicKeyPEM);
 
             // Crear y guardar con Builder
-            WalletKey newWalletKey = builWalletKey(wallet, publicKeyPEM, privateKeyPEM);
+            WalletKey newWalletKey = WalletKey.builder()
+                    .wallet(wallet)
+                    .publicKey(publicKeyPEM)
+                    .privateKey(privateKeyPEM)
+                    .build();
 
             return walletKeyRepository.save(newWalletKey);
 
@@ -82,14 +86,6 @@ public class WalletKeyServiceI implements WalletKeyService {
         String absolutePath = Paths.get(KEYS_FOLDER, "wallet_" + wallet.getId() + "_public.pem").toString();
         log.info("Claves guardadas en: {}", absolutePath);
         return WalletGenerateKeysDTO.generateKey(responseDb.getPublicKey(), absolutePath,wallet.getId());
-    }
-
-    private static WalletKey builWalletKey(Wallet wallet, String publicKeyPEM, String privateKeyPEM) {
-        return WalletKey.builder()
-                .wallet(wallet)
-                .publicKey(publicKeyPEM)
-                .privateKey(privateKeyPEM)
-                .build();
     }
 
     private static KeyPairGenerator getKeyPairGenerator() {

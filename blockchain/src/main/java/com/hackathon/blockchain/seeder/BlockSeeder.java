@@ -2,10 +2,9 @@ package com.hackathon.blockchain.seeder;
 
 import com.hackathon.blockchain.model.Block;
 import com.hackathon.blockchain.repository.BlockRepository;
-import lombok.AllArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
+import lombok.AllArgsConstructor;
+import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 

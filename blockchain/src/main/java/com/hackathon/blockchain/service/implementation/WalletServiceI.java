@@ -8,28 +8,17 @@ import com.hackathon.blockchain.exception.BadRequestException;
 import com.hackathon.blockchain.exception.EntityNotFoundException;
 import com.hackathon.blockchain.model.*;
 import com.hackathon.blockchain.repository.*;
-
 import com.hackathon.blockchain.service.WalletService;
-import com.hackathon.blockchain.utils.PemUtil;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.security.*;
 import java.time.Instant;
 import java.util.*;
-
-import lombok.extern.slf4j.Slf4j;
-
-import static com.hackathon.blockchain.utils.EncodeUtils.encodeKey;
 
 @Slf4j
 @Service
