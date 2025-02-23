@@ -16,7 +16,7 @@ import java.util.List;
 public class UserSession implements UserDetails {
     private Long userId;
     private String username;
-
+    private String email;
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of();

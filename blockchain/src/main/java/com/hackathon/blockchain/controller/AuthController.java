@@ -28,6 +28,7 @@ public class AuthController extends ControllerBase {
         saveUserInSession(session, UserSession.builder()
                 .userId(response.getId())
                 .username(response.getUsername())
+                .email(response.getEmail())
                 .build());
 
         return ResponseEntity.ok(ResponseDTO.registerMessage());
@@ -44,6 +45,7 @@ public class AuthController extends ControllerBase {
         saveUserInSession(session, UserSession.builder()
                 .userId(response.getId())
                 .username(response.getUsername())
+                .email(response.getEmail())
                 .build());
         return ResponseEntity.ok(ResponseDTO.loginSuccessful());
     }
