@@ -19,7 +19,6 @@ public class GlobalExceptionHandler {
         ApiResponse response = ApiResponse.notFound(ex.getMessage()).build();
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
-
     @ExceptionHandler(EntityAlreadyException.class)
     public ResponseEntity<ApiResponse> handleEntityAlreadyExists(EntityAlreadyException ex) {
         ApiResponse response = ApiResponse.conflict(ex.getMessage(), List.of()).build();
